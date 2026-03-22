@@ -7,6 +7,4 @@ RUN npm install --omit=dev
 
 COPY . .
 
-RUN npx prisma generate
-
 CMD ["node", "index.js"]
