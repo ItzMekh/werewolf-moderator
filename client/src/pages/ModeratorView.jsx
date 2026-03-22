@@ -6,7 +6,6 @@ import socket from '../socket.js';
 const ROLE_EMOJIS = {
   werewolf: '🐺',
   seer: '👁️',
-  doctor: '💊',
   bodyguard: '🛡️',
   villager: '👤'
 };
@@ -14,7 +13,6 @@ const ROLE_EMOJIS = {
 const NIGHT_TURN_LABELS = {
   werewolf: 'night.werewolfTurn',
   bodyguard: 'night.bodyguardTurn',
-  doctor: 'night.doctorTurn',
   seer: 'night.seerTurn',
   done: 'night.allDone'
 };
@@ -38,6 +36,16 @@ export default function ModeratorView() {
   const [seerResult, setSeerResult] = useState(null);
   const [gameOver, setGameOver] = useState(null);
   const [showResult, setShowResult] = useState(false);
+
+  // Lobby state (for play-again)
+  const [lobbyPlayers, setLobbyPlayers] = useState([]);
+  const [roleConfig, setRoleConfig] = useState({
+    werewolf: 2,
+    seer: 1,
+    bodyguard: 1,
+    villager: 3
+  });
+  const [lobbyError, setLobbyError] = useState('');
 
   useEffect(() => {
     socket.on('game-started', (data) => {
@@ -93,6 +101,17 @@ export default function ModeratorView() {
         const updated = updatedPlayers.find(u => u.name === p.name);
         return updated ? { ...p, connected: updated.connected, alive: updated.alive } : p;
       }));
+      // Also update lobby players if in lobby
+      setLobbyPlayers(updatedPlayers);
+    });
+
+    // Lobby events (for play-again phase)
+    socket.on('player-joined', ({ players: updatedPlayers }) => {
+      setLobbyPlayers(updatedPlayers);
+    });
+
+    socket.on('player-left', ({ players: updatedPlayers }) => {
+      setLobbyPlayers(updatedPlayers);
     });
 
     return () => {
@@ -107,6 +126,8 @@ export default function ModeratorView() {
       socket.off('seer-check-result');
       socket.off('game-over');
       socket.off('player-disconnected');
+      socket.off('player-joined');
+      socket.off('player-left');
     };
   }, []);
 
@@ -149,6 +170,29 @@ export default function ModeratorView() {
     });
   };
 
+  const playAgain = () => {
+    socket.emit('play-again', { roomCode }, (response) => {
+      if (response.success) {
+        // Reset all game state
+        setGameOver(null);
+        setGamePhase('lobby');
+        setRound(1);
+        setPlayers([]);
+        setAllRoles([]);
+        setNightActions([]);
+        setDayVotes([]);
+        setAllNightActionsIn(false);
+        setAllDayVotesIn(false);
+        setNightResult(null);
+        setDayResult(null);
+        setSeerResult(null);
+        setShowResult(false);
+        setNightSubPhase(null);
+        setLobbyError('');
+      }
+    });
+  };
+
   const endGame = () => {
     socket.emit('end-game', { roomCode }, (response) => {
       if (response.success) {
@@ -161,6 +205,40 @@ export default function ModeratorView() {
     setShowResult(false);
     setNightResult(null);
     setDayResult(null);
+  };
+
+  // Lobby functions
+  const totalRoles = Object.values(roleConfig).reduce((a, b) => a + b, 0);
+
+  const updateRole = (role, delta) => {
+    setRoleConfig(prev => {
+      const updated = {
+        ...prev,
+        [role]: Math.max(role === 'werewolf' ? 1 : 0, prev[role] + delta)
+      };
+      socket.emit('update-role-config', { roomCode, roleConfig: updated });
+      return updated;
+    });
+  };
+
+  const startGame = () => {
+    setLobbyError('');
+    if (lobbyPlayers.length < 4) {
+      setLobbyError(t('lobby.minPlayers'));
+      return;
+    }
+    if (totalRoles !== lobbyPlayers.length) {
+      setLobbyError(`Role count (${totalRoles}) must match player count (${lobbyPlayers.length})`);
+      return;
+    }
+
+    socket.emit('start-game', { roomCode, roleConfig }, (response) => {
+      if (response.success) {
+        // game-started and all-roles events will update state
+      } else {
+        setLobbyError(response.error);
+      }
+    });
   };
 
   // Game Over Screen
@@ -190,9 +268,14 @@ export default function ModeratorView() {
             </div>
           </div>
 
-          <button className="btn btn-primary btn-lg" onClick={endGame}>
-            {t('gameOver.backToLobby')}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+            <button className="btn btn-primary btn-lg" onClick={playAgain}>
+              🔄 {t('gameOver.playAgain')}
+            </button>
+            <button className="btn btn-secondary" onClick={endGame}>
+              {t('gameOver.backToLobby')}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -207,14 +290,15 @@ export default function ModeratorView() {
       {/* Header */}
       <div className="mod-header">
         <div className="phase-badge">
-          {gamePhase === 'night' ? '🌙' : gamePhase === 'roleReveal' ? '🎭' : '☀️'}
+          {gamePhase === 'night' ? '🌙' : gamePhase === 'roleReveal' ? '🎭' : gamePhase === 'lobby' ? '⏳' : '☀️'}
           <span>
             {gamePhase === 'night' ? t('game.night') :
              gamePhase === 'roleReveal' ? t('roleReveal.title') :
+             gamePhase === 'lobby' ? t('lobby.roomCode') :
              t('game.day')}
           </span>
         </div>
-        <div className="round-badge">{t('game.round')} {round}</div>
+        {gamePhase !== 'lobby' && <div className="round-badge">{t('game.round')} {round}</div>}
         <div className="room-badge">#{roomCode}</div>
       </div>
 
@@ -241,11 +325,6 @@ export default function ModeratorView() {
                   <div className="death-announce">
                     <span className="skull">💀</span>
                     <p><strong>{nightResult.killed}</strong> {t('result.killed')}</p>
-                  </div>
-                ) : nightResult.savedBy ? (
-                  <div className="save-announce">
-                    <span className="heart">💊</span>
-                    <p>{t('result.saved')}</p>
                   </div>
                 ) : nightResult.protectedBy ? (
                   <div className="save-announce">
@@ -293,26 +372,81 @@ export default function ModeratorView() {
         </div>
       )}
 
-      {/* Players Grid */}
-      <div className="card">
-        <h2>{t('lobby.players')}</h2>
-        <div className="mod-player-grid">
-          {allRoles.map((p, i) => {
-            const playerState = players.find(pl => pl.name === p.name);
-            const isAlive = playerState ? playerState.alive : true;
-            return (
-              <div key={i} className={`mod-player-card ${isAlive ? '' : 'dead'}`}>
-                <div className="player-emoji">{p.emoji}</div>
-                <div className="player-name">{p.name}</div>
-                <div className="player-role">{t(`roles.${p.role}`)}</div>
-                <div className={`player-status ${isAlive ? 'alive' : 'dead'}`}>
-                  {isAlive ? '❤️' : '💀'}
-                </div>
+      {/* ===== LOBBY PHASE (after play-again) ===== */}
+      {gamePhase === 'lobby' && (
+        <>
+          {/* Players List */}
+          <div className="card">
+            <h2>{t('lobby.players')} ({lobbyPlayers.length})</h2>
+            {lobbyPlayers.length === 0 ? (
+              <p className="waiting-text">{t('lobby.waiting')}</p>
+            ) : (
+              <div className="player-list">
+                {lobbyPlayers.map((p, i) => (
+                  <div key={i} className="player-chip">
+                    <span className="player-number">{i + 1}</span>
+                    {p.name}
+                  </div>
+                ))}
               </div>
-            );
-          })}
+            )}
+          </div>
+
+          {/* Role Configuration */}
+          <div className="card">
+            <h2>{t('lobby.roleConfig')}</h2>
+            <div className="role-config">
+              {Object.entries(roleConfig).map(([role, count]) => (
+                <div key={role} className="role-row">
+                  <span className="role-emoji">{ROLE_EMOJIS[role]}</span>
+                  <span className="role-name">{t(`roles.${role}`)}</span>
+                  <div className="role-counter">
+                    <button className="btn-counter" onClick={() => updateRole(role, -1)}>−</button>
+                    <span className="count">{count}</span>
+                    <button className="btn-counter" onClick={() => updateRole(role, 1)}>+</button>
+                  </div>
+                </div>
+              ))}
+              <div className="role-total">
+                {t('lobby.total')}: {totalRoles} / {lobbyPlayers.length} {t('lobby.players').toLowerCase()}
+              </div>
+            </div>
+          </div>
+
+          {lobbyError && <div className="error-msg">{lobbyError}</div>}
+
+          <button
+            className="btn btn-primary btn-lg btn-start"
+            onClick={startGame}
+            disabled={lobbyPlayers.length < 4 || totalRoles !== lobbyPlayers.length}
+          >
+            🎮 {t('lobby.startGame')}
+          </button>
+        </>
+      )}
+
+      {/* Players Grid (during game) */}
+      {gamePhase !== 'lobby' && (
+        <div className="card">
+          <h2>{t('lobby.players')}</h2>
+          <div className="mod-player-grid">
+            {allRoles.map((p, i) => {
+              const playerState = players.find(pl => pl.name === p.name);
+              const isAlive = playerState ? playerState.alive : true;
+              return (
+                <div key={i} className={`mod-player-card ${isAlive ? '' : 'dead'}`}>
+                  <div className="player-emoji">{p.emoji}</div>
+                  <div className="player-name">{p.name}</div>
+                  <div className="player-role">{t(`roles.${p.role}`)}</div>
+                  <div className={`player-status ${isAlive ? 'alive' : 'dead'}`}>
+                    {isAlive ? '❤️' : '💀'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ===== ROLE REVEAL PHASE ===== */}
       {gamePhase === 'roleReveal' && (
@@ -405,10 +539,12 @@ export default function ModeratorView() {
         </div>
       )}
 
-      {/* End Game Button */}
-      <button className="btn btn-danger" onClick={endGame}>
-        {t('moderator.endGame')}
-      </button>
+      {/* End Game Button (during game, not lobby) */}
+      {gamePhase !== 'lobby' && (
+        <button className="btn btn-danger" onClick={endGame}>
+          {t('moderator.endGame')}
+        </button>
+      )}
     </div>
   );
 }

@@ -59,7 +59,6 @@
   "roles": {
     "werewolf": "Werewolf",
     "seer": "Seer",
-    "doctor": "Doctor",
     "bodyguard": "Bodyguard",
     "villager": "Villager"
   },
@@ -83,13 +82,11 @@
     "title": "Night Phase",
     "werewolfAction": "Choose a player to attack",
     "seerAction": "Choose a player to investigate",
-    "doctorAction": "Choose a player to heal",
     "bodyguardAction": "Choose a player to protect",
     "villagerWait": "Sleep tight... wait for morning",
     "sleeping": "Close your eyes...",
     "werewolfTurn": "Werewolves, wake up!",
     "bodyguardTurn": "Bodyguard, wake up!",
-    "doctorTurn": "Doctor, wake up!",
     "seerTurn": "Seer, wake up!",
     "allDone": "Everyone, close your eyes...",
     "startNight": "Start Night",

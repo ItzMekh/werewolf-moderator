@@ -195,12 +195,11 @@ io.on('connection', (socket) => {
   });
 
   // Request lobby info (fixes race condition when PlayerView mounts after join)
-  socket.on('request-lobby-info', ({ roomCode }, callback) => {
+  socket.on('request-lobby-info', ({ roomCode }) => {
     const room = gameManager.getRoom(roomCode);
-    if (!room) return callback({ success: false });
+    if (!room) return;
 
-    callback({
-      success: true,
+    socket.emit('lobby-info', {
       players: room.players.map(p => ({
         name: p.name,
         connected: p.connected
@@ -278,7 +277,6 @@ io.on('connection', (socket) => {
     room.gameState.nightActions = {
       werewolfVotes: {},
       seerCheck: null,
-      doctorSave: null,
       bodyguardProtect: null
     };
 
@@ -343,16 +341,6 @@ io.on('connection', (socket) => {
 
         io.to(room.moderatorId).emit('night-action-received', {
           role: 'seer',
-          player: player.name,
-          target
-        });
-        break;
-
-      case 'doctor-save':
-        if (player.role !== 'doctor') return callback({ success: false, error: 'Not a doctor' });
-        nightActions.doctorSave = target;
-        io.to(room.moderatorId).emit('night-action-received', {
-          role: 'doctor',
           player: player.name,
           target
         });
@@ -518,7 +506,6 @@ io.on('connection', (socket) => {
     room.gameState.nightActions = {
       werewolfVotes: {},
       seerCheck: null,
-      doctorSave: null,
       bodyguardProtect: null
     };
 
@@ -539,21 +526,39 @@ io.on('connection', (socket) => {
     callback({ success: true, result });
   });
 
-  // ===== END GAME (Moderator only) =====
+  // ===== PLAY AGAIN (Moderator only) — reset room, stay in lobby =====
+
+  socket.on('play-again', ({ roomCode }, callback) => {
+    const room = gameManager.getRoom(roomCode);
+    if (!room) return callback({ success: false, error: 'Room not found' });
+    if (room.moderatorId !== socket.id) return callback({ success: false, error: 'Not the moderator' });
+
+    // Reset game state but keep room alive
+    room.gameState = null;
+    room.players.forEach(p => {
+      p.role = null;
+      p.alive = true;
+    });
+
+    io.to(roomCode).emit('game-reset', {
+      players: room.players.map(p => ({
+        name: p.name,
+        connected: p.connected
+      })),
+      roleConfig: room.settings.roles
+    });
+
+    callback({ success: true });
+  });
+
+  // ===== END GAME (Moderator only) — close room, go home =====
 
   socket.on('end-game', ({ roomCode }, callback) => {
     const room = gameManager.getRoom(roomCode);
     if (!room) return callback({ success: false, error: 'Room not found' });
     if (room.moderatorId !== socket.id) return callback({ success: false, error: 'Not the moderator' });
 
-    io.to(roomCode).emit('game-ended', {
-      players: room.players.map(p => ({
-        name: p.name,
-        role: p.role,
-        alive: p.alive,
-        emoji: gameLogic.getRoleInfo(p.role).emoji
-      }))
-    });
+    io.to(roomCode).emit('game-ended');
 
     room.gameState = null;
     room.players.forEach(p => {

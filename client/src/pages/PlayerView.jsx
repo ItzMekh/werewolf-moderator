@@ -6,7 +6,6 @@ import socket from '../socket.js';
 const ROLE_EMOJIS = {
   werewolf: '🐺',
   seer: '👁️',
-  doctor: '💊',
   bodyguard: '🛡️',
   villager: '👤'
 };
@@ -64,17 +63,10 @@ export default function PlayerView() {
       return;
     }
 
-    // Request lobby info (fixes race condition)
-    socket.emit('request-lobby-info', { roomCode }, (response) => {
-      if (response && response.success) {
-        setLobbyPlayers(response.players);
-        if (response.roleConfig && Object.keys(response.roleConfig).length > 0) {
-          setRoleConfig(response.roleConfig);
-        }
-      }
-    });
+    // Request lobby info (emit-based, no callback — uses lobby-info listener below)
+    socket.emit('request-lobby-info', { roomCode });
 
-    // Lobby info (sent when joining — backup)
+    // Lobby info (sent by server on join or request-lobby-info)
     socket.on('lobby-info', (data) => {
       setLobbyPlayers(data.players);
       if (data.roleConfig && Object.keys(data.roleConfig).length > 0) {
@@ -178,6 +170,33 @@ export default function PlayerView() {
       setGamePhase('finished');
     });
 
+    // Game reset — back to lobby (play again)
+    socket.on('game-reset', (data) => {
+      setGameOver(null);
+      setGamePhase('waiting');
+      setRole(null);
+      setRoleEmoji('');
+      setTeam('');
+      setRound(0);
+      setPlayers([]);
+      setAlive(true);
+      setSelectedTarget(null);
+      setActionSubmitted(false);
+      setWerewolfTeammates([]);
+      setWerewolfVotes({});
+      setSeerResult(null);
+      setNightResult(null);
+      setDayResult(null);
+      setShowResult(false);
+      setPeeking(false);
+      setVoteCount({ voted: 0, total: 0 });
+      setNightSubPhase(null);
+      setBodyguardError('');
+      setLobbyPlayers(data.players);
+      if (data.roleConfig) setRoleConfig(data.roleConfig);
+    });
+
+    // Game ended — go home
     socket.on('game-ended', () => {
       navigate('/');
     });
@@ -202,6 +221,7 @@ export default function PlayerView() {
       socket.off('day-result');
       socket.off('vote-count-update');
       socket.off('game-over');
+      socket.off('game-reset');
       socket.off('game-ended');
       socket.off('room-closed');
     };
@@ -214,19 +234,20 @@ export default function PlayerView() {
     switch (role) {
       case 'werewolf': action = 'werewolf-kill'; break;
       case 'seer': action = 'seer-check'; break;
-      case 'doctor': action = 'doctor-save'; break;
       case 'bodyguard': action = 'bodyguard-protect'; break;
       default: return;
     }
 
     socket.emit('night-action', { roomCode, action, target: selectedTarget }, (response) => {
       if (response.success) {
-        setActionSubmitted(true);
         if (role === 'werewolf') {
+          // Werewolves can re-vote — don't lock them out
           setWerewolfVotes(prev => ({ ...prev, [playerName]: selectedTarget }));
+        } else {
+          setActionSubmitted(true);
         }
       } else {
-        if (response.error.includes('Cannot protect the same person')) {
+        if (response.error && response.error.includes('Cannot protect the same person')) {
           setBodyguardError(t('night.cannotProtectSame'));
           setSelectedTarget(null);
         }
@@ -247,7 +268,6 @@ export default function PlayerView() {
     switch (role) {
       case 'werewolf': return t('night.werewolfAction');
       case 'seer': return t('night.seerAction');
-      case 'doctor': return t('night.doctorAction');
       case 'bodyguard': return t('night.bodyguardAction');
       default: return t('night.villagerWait');
     }
@@ -264,10 +284,8 @@ export default function PlayerView() {
         );
       case 'seer':
         return alivePlayers.filter(p => p.name !== playerName);
-      case 'doctor':
-        return alivePlayers; // Doctor can save self
       case 'bodyguard':
-        return alivePlayers; // Bodyguard can protect self
+        return alivePlayers; // Bodyguard CAN protect self
       default:
         return [];
     }
@@ -306,11 +324,18 @@ export default function PlayerView() {
     switch (nightSubPhase) {
       case 'werewolf': return t('night.werewolfTurn');
       case 'bodyguard': return t('night.bodyguardTurn');
-      case 'doctor': return t('night.doctorTurn');
       case 'seer': return t('night.seerTurn');
       case 'done': return t('night.allDone');
       default: return t('night.sleeping');
     }
+  };
+
+  // Check if all werewolves agree
+  const getWerewolfConsensus = () => {
+    const votes = Object.values(werewolfVotes);
+    if (votes.length === 0) return { agreed: false, target: null };
+    const allSame = votes.every(v => v === votes[0]);
+    return { agreed: allSame, target: allSame ? votes[0] : null };
   };
 
   // Game Over Screen
@@ -349,6 +374,10 @@ export default function PlayerView() {
               ))}
             </div>
           </div>
+
+          <p className="waiting-text" style={{ marginTop: '16px' }}>
+            ⏳ {t('lobby.waitingModerator')}
+          </p>
         </div>
       </div>
     );
@@ -379,7 +408,7 @@ export default function PlayerView() {
         )}
       </div>
 
-      {/* Role Peek Card (press and hold) */}
+      {/* Role Peek Card (press and hold) — hidden by default, revealed on peek */}
       {role && (gamePhase === 'roleReveal' || gamePhase === 'day' || gamePhase === 'night') && (
         <div
           className={`role-peek-card ${peeking ? 'peeking' : ''}`}
@@ -489,7 +518,57 @@ export default function PlayerView() {
                 <h2>{getActionText()}</h2>
               </div>
 
-              {actionSubmitted ? (
+              {/* Werewolf: always show target list (can re-vote) */}
+              {role === 'werewolf' ? (
+                <>
+                  {werewolfTeammates.length > 0 && (
+                    <div className="teammates-info">
+                      <p>🐺 {werewolfTeammates.join(', ')}</p>
+                    </div>
+                  )}
+
+                  {/* Show all werewolf votes */}
+                  {Object.keys(werewolfVotes).length > 0 && (
+                    <div className="wolf-votes">
+                      {Object.entries(werewolfVotes).map(([voter, target]) => (
+                        <div key={voter} className="wolf-vote-item">
+                          <span>🐺 {voter}</span> → <span>{target}</span>
+                        </div>
+                      ))}
+                      {(() => {
+                        const { agreed } = getWerewolfConsensus();
+                        return agreed ? (
+                          <div className="wolf-consensus">✅ {t('night.actionSubmitted')}</div>
+                        ) : (
+                          <div className="wolf-no-consensus">⚠️ {t('night.waiting')}</div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  <div className="target-list">
+                    {getSelectablePlayers().map((p, i) => (
+                      <button
+                        key={i}
+                        className={`target-btn ${selectedTarget === p.name ? 'selected' : ''} ${werewolfVotes[playerName] === p.name ? 'voted' : ''}`}
+                        onClick={() => setSelectedTarget(p.name)}
+                      >
+                        {p.name}
+                        {werewolfVotes[playerName] === p.name && ' ✓'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    className="btn btn-primary btn-lg"
+                    onClick={submitNightAction}
+                    disabled={!selectedTarget}
+                  >
+                    {werewolfVotes[playerName] ? t('common.confirm') + ' ↻' : t('common.confirm')}
+                  </button>
+                </>
+              ) : actionSubmitted ? (
+                /* Non-werewolf: show submitted state */
                 <div className="action-submitted">
                   <span>✅</span>
                   <p>{t('night.actionSubmitted')}</p>
@@ -503,23 +582,8 @@ export default function PlayerView() {
                   )}
                 </div>
               ) : (
+                /* Non-werewolf: show target selection */
                 <>
-                  {role === 'werewolf' && werewolfTeammates.length > 0 && (
-                    <div className="teammates-info">
-                      <p>🐺 {werewolfTeammates.join(', ')}</p>
-                    </div>
-                  )}
-
-                  {role === 'werewolf' && Object.keys(werewolfVotes).length > 0 && (
-                    <div className="wolf-votes">
-                      {Object.entries(werewolfVotes).map(([voter, target]) => (
-                        <div key={voter} className="wolf-vote-item">
-                          <span>🐺 {voter}</span> → <span>{target}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
                   {bodyguardError && (
                     <div className="error-msg">{bodyguardError}</div>
                   )}

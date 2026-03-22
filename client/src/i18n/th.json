@@ -59,7 +59,6 @@
   "roles": {
     "werewolf": "หมาป่า",
     "seer": "นักพยากรณ์",
-    "doctor": "หมอ",
     "bodyguard": "บอดี้การ์ด",
     "villager": "ชาวบ้าน"
   },
@@ -83,13 +82,11 @@
     "title": "กลางคืน",
     "werewolfAction": "เลือกคนที่จะกัด",
     "seerAction": "เลือกคนที่จะตรวจสอบ",
-    "doctorAction": "เลือกคนที่จะรักษา",
     "bodyguardAction": "เลือกคนที่จะปกป้อง",
     "villagerWait": "หลับไปเถอะ... รอกลางวัน",
     "sleeping": "หลับตา...",
     "werewolfTurn": "หมาป่า ลืมตา!",
     "bodyguardTurn": "บอดี้การ์ด ลืมตา!",
-    "doctorTurn": "หมอ ลืมตา!",
     "seerTurn": "นักพยากรณ์ ลืมตา!",
     "allDone": "ทุกคนหลับตา...",
     "startNight": "เริ่มกลางคืน",

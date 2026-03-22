@@ -6,7 +6,6 @@ import socket from '../socket.js';
 const ROLE_EMOJIS = {
   werewolf: '🐺',
   seer: '👁️',
-  doctor: '💊',
   bodyguard: '🛡️',
   villager: '👤'
 };
@@ -19,9 +18,8 @@ export default function CreateRoom() {
   const [roleConfig, setRoleConfig] = useState({
     werewolf: 2,
     seer: 1,
-    doctor: 1,
     bodyguard: 1,
-    villager: 3
+    villager: 4
   });
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);

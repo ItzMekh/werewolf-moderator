@@ -10,7 +10,6 @@ function shuffle(array) {
 
 // Assign roles to players based on room settings
 function assignRoles(players, roleConfig) {
-  // roleConfig = { werewolf: 2, seer: 1, doctor: 1, bodyguard: 1, villager: 3 }
   const roles = [];
   for (const [role, count] of Object.entries(roleConfig)) {
     for (let i = 0; i < count; i++) {
@@ -31,26 +30,25 @@ function assignRoles(players, roleConfig) {
   return { success: true };
 }
 
-// Night turn order
-const NIGHT_TURN_ORDER = ['werewolf', 'bodyguard', 'doctor', 'seer'];
+// Night turn order (no doctor)
+const NIGHT_TURN_ORDER = ['werewolf', 'bodyguard', 'seer'];
 
 // Create initial game state
 function createGameState(roleConfig) {
   return {
-    phase: 'roleReveal', // "roleReveal" | "night" | "day" | "finished"
+    phase: 'roleReveal',
     round: 1,
     roleConfig,
-    nightSubPhase: null, // 'werewolf' | 'bodyguard' | 'doctor' | 'seer' | 'done'
+    nightSubPhase: null,
     nightActions: {
-      werewolfVotes: {},    // { voterId: targetName }
-      seerCheck: null,       // targetName
-      doctorSave: null,      // targetName
-      bodyguardProtect: null  // targetName
+      werewolfVotes: {},
+      seerCheck: null,
+      bodyguardProtect: null
     },
-    dayVotes: {},            // { voterId: targetName }
-    lastBodyguardTarget: null, // Track for "can't protect same person twice"
-    deaths: [],              // Deaths to announce
-    log: []                  // Event log
+    dayVotes: {},
+    lastBodyguardTarget: null,
+    deaths: [],
+    log: []
   };
 }
 
@@ -78,12 +76,13 @@ function isNightSubPhaseComplete(gameState, players, subPhase) {
   switch (subPhase) {
     case 'werewolf': {
       const aliveWolves = alivePlayers.filter(p => p.role === 'werewolf');
-      return Object.keys(gameState.nightActions.werewolfVotes).length >= aliveWolves.length;
+      const votes = Object.values(gameState.nightActions.werewolfVotes);
+      if (votes.length < aliveWolves.length) return false;
+      // All werewolves must agree on the same target
+      return votes.every(v => v === votes[0]);
     }
     case 'bodyguard':
       return gameState.nightActions.bodyguardProtect !== null;
-    case 'doctor':
-      return gameState.nightActions.doctorSave !== null;
     case 'seer':
       return gameState.nightActions.seerCheck !== null;
     default:
@@ -96,7 +95,6 @@ function getRoleInfo(role) {
   const roles = {
     werewolf: { team: 'werewolf', hasNightAction: true, emoji: '🐺' },
     seer: { team: 'village', hasNightAction: true, emoji: '👁️' },
-    doctor: { team: 'village', hasNightAction: true, emoji: '💊' },
     bodyguard: { team: 'village', hasNightAction: true, emoji: '🛡️' },
     villager: { team: 'village', hasNightAction: false, emoji: '👤' }
   };
@@ -104,7 +102,7 @@ function getRoleInfo(role) {
 }
 
 // Process werewolf votes — return the target with most votes
-function getWerewolfTarget(nightActions, players) {
+function getWerewolfTarget(nightActions) {
   const votes = Object.values(nightActions.werewolfVotes);
   if (votes.length === 0) return null;
 
@@ -113,7 +111,6 @@ function getWerewolfTarget(nightActions, players) {
     tally[target] = (tally[target] || 0) + 1;
   });
 
-  // Find the target with the most votes
   let maxVotes = 0;
   let target = null;
   for (const [name, count] of Object.entries(tally)) {
@@ -130,14 +127,13 @@ function resolveNight(gameState, players) {
   const { nightActions } = gameState;
   const result = {
     killed: null,
-    savedBy: null,
     protectedBy: null,
     seerResult: null,
     deaths: []
   };
 
   // 1. Get werewolf target
-  const werewolfTarget = getWerewolfTarget(nightActions, players);
+  const werewolfTarget = getWerewolfTarget(nightActions);
 
   // 2. Check seer result
   if (nightActions.seerCheck) {
@@ -152,20 +148,14 @@ function resolveNight(gameState, players) {
     }
   }
 
-  // 3. Check if target was saved by doctor
-  const doctorSaved = nightActions.doctorSave === werewolfTarget;
-
-  // 4. Check if target was protected by bodyguard
+  // 3. Check if target was protected by bodyguard
   const bodyguardProtected = nightActions.bodyguardProtect === werewolfTarget;
 
-  // 5. Determine if someone dies
+  // 4. Determine if someone dies
   if (werewolfTarget) {
-    if (doctorSaved) {
-      result.savedBy = 'doctor';
-    } else if (bodyguardProtected) {
+    if (bodyguardProtected) {
       result.protectedBy = 'bodyguard';
     } else {
-      // Target dies
       const targetPlayer = players.find(p => p.name === werewolfTarget);
       if (targetPlayer && targetPlayer.alive) {
         targetPlayer.alive = false;
@@ -187,7 +177,6 @@ function resolveNight(gameState, players) {
     round: gameState.round,
     phase: 'night',
     werewolfTarget,
-    doctorSave: nightActions.doctorSave,
     bodyguardProtect: nightActions.bodyguardProtect,
     seerCheck: nightActions.seerCheck,
     result: result.killed ? `${result.killed} killed` : 'No one died'
@@ -197,14 +186,13 @@ function resolveNight(gameState, players) {
   gameState.nightActions = {
     werewolfVotes: {},
     seerCheck: null,
-    doctorSave: null,
     bodyguardProtect: null
   };
 
   return result;
 }
 
-// Process day votes — return the target with most votes
+// Process day votes
 function resolveDayVote(gameState, players) {
   const votes = gameState.dayVotes;
   const voteEntries = Object.values(votes);
@@ -219,10 +207,8 @@ function resolveDayVote(gameState, players) {
     tally[target] = (tally[target] || 0) + 1;
   });
 
-  // Count skips
   const skipCount = voteEntries.filter(v => v === 'skip').length;
 
-  // Find max voted
   let maxVotes = 0;
   let eliminated = null;
   for (const [name, count] of Object.entries(tally)) {
@@ -232,18 +218,15 @@ function resolveDayVote(gameState, players) {
     }
   }
 
-  // If skip has more or equal votes, no elimination
   if (skipCount >= maxVotes) {
     return { eliminated: null, tally, skipCount, skipped: true };
   }
 
-  // Check for tie
   const tiedPlayers = Object.entries(tally).filter(([, count]) => count === maxVotes);
   if (tiedPlayers.length > 1) {
     return { eliminated: null, tally, skipCount, tied: true, tiedPlayers: tiedPlayers.map(([name]) => name) };
   }
 
-  // Eliminate the player
   if (eliminated) {
     const targetPlayer = players.find(p => p.name === eliminated);
     if (targetPlayer) {
@@ -251,7 +234,6 @@ function resolveDayVote(gameState, players) {
     }
   }
 
-  // Log
   gameState.log.push({
     round: gameState.round,
     phase: 'day',
@@ -259,7 +241,6 @@ function resolveDayVote(gameState, players) {
     result: eliminated ? `${eliminated} eliminated` : 'No elimination'
   });
 
-  // Reset day votes
   gameState.dayVotes = {};
 
   return { eliminated, tally, skipCount };
@@ -284,15 +265,14 @@ function checkWinCondition(players) {
 
 // Get default role config based on player count
 function getDefaultRoleConfig(playerCount) {
-  // Flexible config based on player count
   if (playerCount <= 5) {
-    return { werewolf: 1, seer: 1, doctor: 1, villager: playerCount - 3 };
+    return { werewolf: 1, seer: 1, bodyguard: 1, villager: playerCount - 3 };
   } else if (playerCount <= 8) {
-    return { werewolf: 2, seer: 1, doctor: 1, bodyguard: 1, villager: playerCount - 5 };
+    return { werewolf: 2, seer: 1, bodyguard: 1, villager: playerCount - 4 };
   } else if (playerCount <= 12) {
-    return { werewolf: 3, seer: 1, doctor: 1, bodyguard: 1, villager: playerCount - 6 };
+    return { werewolf: 3, seer: 1, bodyguard: 1, villager: playerCount - 5 };
   } else {
-    return { werewolf: 4, seer: 1, doctor: 1, bodyguard: 1, villager: playerCount - 7 };
+    return { werewolf: 4, seer: 1, bodyguard: 1, villager: playerCount - 6 };
   }
 }
 
@@ -300,20 +280,13 @@ function getDefaultRoleConfig(playerCount) {
 function allNightActionsSubmitted(gameState, players) {
   const alivePlayers = players.filter(p => p.alive);
 
-  // Check werewolves
   const aliveWerewolves = alivePlayers.filter(p => p.role === 'werewolf');
   const werewolfVoteCount = Object.keys(gameState.nightActions.werewolfVotes).length;
   if (werewolfVoteCount < aliveWerewolves.length) return false;
 
-  // Check seer
   const aliveSeer = alivePlayers.find(p => p.role === 'seer');
   if (aliveSeer && !gameState.nightActions.seerCheck) return false;
 
-  // Check doctor
-  const aliveDoctor = alivePlayers.find(p => p.role === 'doctor');
-  if (aliveDoctor && !gameState.nightActions.doctorSave) return false;
-
-  // Check bodyguard
   const aliveBodyguard = alivePlayers.find(p => p.role === 'bodyguard');
   if (aliveBodyguard && !gameState.nightActions.bodyguardProtect) return false;
 
