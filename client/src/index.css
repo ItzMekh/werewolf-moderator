@@ -833,6 +833,14 @@ body::before {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Glow border while holding down */
+.role-peek-card.holding {
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.35);
 }
 
 .role-peek-hidden {
@@ -862,6 +870,48 @@ body::before {
 .role-peek-hidden p {
   color: var(--text-secondary);
   font-size: 0.8rem;
+}
+
+/* Hold progress ring (SVG circle) */
+.hold-progress-ring {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.role-peek-card.holding .hold-progress-ring {
+  opacity: 1;
+}
+
+.hold-progress-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 3;
+}
+
+.hold-progress-fill {
+  fill: none;
+  stroke: var(--accent-purple);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 113;
+  stroke-dashoffset: 113;
+  transform-origin: center;
+  transform: rotate(-90deg);
+}
+
+.role-peek-card.holding .hold-progress-fill {
+  animation: hold-ring-fill 0.6s linear forwards;
+}
+
+@keyframes hold-ring-fill {
+  from { stroke-dashoffset: 113; }
+  to { stroke-dashoffset: 0; }
 }
 
 .role-peek-revealed {

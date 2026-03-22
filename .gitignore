@@ -1,10 +1,23 @@
+# Global ignores
 node_modules/
 dist/
+build/
+
+# Secrets
 .env
+.env.*
+!.env.example
+
+# Databases
 *.db
 *.db-journal
+*.sqlite
+*.sqlite3
+
+# OS files
 .DS_Store
 Thumbs.db
+
+# Optional AI files (if any)
 CLAUDE.md
 .claude/
-docs/

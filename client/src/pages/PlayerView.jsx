@@ -23,6 +23,10 @@ export default function PlayerView() {
   const [gamePhase, setGamePhase] = useState('waiting');
   const [nightSubPhase, setNightSubPhase] = useState(null);
   const [round, setRound] = useState(0);
+
+  // Ref to track current role for use inside socket event handlers (avoids stale closure)
+  const roleRef = useRef(null);
+  useEffect(() => { roleRef.current = role; }, [role]);
   const [players, setPlayers] = useState([]);
   const [alive, setAlive] = useState(true);
   const [selectedTarget, setSelectedTarget] = useState(null);
@@ -160,6 +164,13 @@ export default function PlayerView() {
       setPlayers(data.players);
     });
 
+    // Haptic buzz when it's this player's night turn
+    const hapticIfMyTurn = (subPhase) => {
+      if (subPhase && subPhase !== 'done' && roleRef.current === subPhase) {
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      }
+    };
+
     // Night phase events
     socket.on('night-started', (data) => {
       setGamePhase('night');
@@ -170,6 +181,7 @@ export default function PlayerView() {
       setWerewolfVotes({});
       setSeerResult(null);
       setBodyguardError('');
+      hapticIfMyTurn(data.nightSubPhase);
     });
 
     socket.on('night-sub-phase-changed', (data) => {
@@ -177,6 +189,7 @@ export default function PlayerView() {
       // Reset action state for new sub-phase
       setActionSubmitted(false);
       setSelectedTarget(null);
+      hapticIfMyTurn(data.nightSubPhase);
     });
 
     socket.on('werewolf-vote-update', (data) => {
