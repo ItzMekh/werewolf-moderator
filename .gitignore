@@ -5,3 +5,6 @@ dist/
 *.db-journal
 .DS_Store
 Thumbs.db
+CLAUDE.md
+.claude/
+docs/
