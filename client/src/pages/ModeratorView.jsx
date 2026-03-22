@@ -11,12 +11,21 @@ const ROLE_EMOJIS = {
   villager: '👤'
 };
 
+const NIGHT_TURN_LABELS = {
+  werewolf: 'night.werewolfTurn',
+  bodyguard: 'night.bodyguardTurn',
+  doctor: 'night.doctorTurn',
+  seer: 'night.seerTurn',
+  done: 'night.allDone'
+};
+
 export default function ModeratorView() {
   const { roomCode } = useParams();
   const navigate = useNavigate();
   const { t, lang, toggleLang } = useLanguage();
 
-  const [gamePhase, setGamePhase] = useState('night');
+  const [gamePhase, setGamePhase] = useState('roleReveal');
+  const [nightSubPhase, setNightSubPhase] = useState(null);
   const [round, setRound] = useState(1);
   const [players, setPlayers] = useState([]);
   const [allRoles, setAllRoles] = useState([]);
@@ -39,6 +48,19 @@ export default function ModeratorView() {
 
     socket.on('all-roles', (data) => {
       setAllRoles(data.players);
+    });
+
+    socket.on('night-started', (data) => {
+      setGamePhase('night');
+      setRound(data.round);
+      setNightSubPhase(data.nightSubPhase);
+      setNightActions([]);
+      setAllNightActionsIn(false);
+      setSeerResult(null);
+    });
+
+    socket.on('night-sub-phase-changed', (data) => {
+      setNightSubPhase(data.nightSubPhase);
     });
 
     socket.on('night-action-received', (data) => {
@@ -76,6 +98,8 @@ export default function ModeratorView() {
     return () => {
       socket.off('game-started');
       socket.off('all-roles');
+      socket.off('night-started');
+      socket.off('night-sub-phase-changed');
       socket.off('night-action-received');
       socket.off('all-night-actions-received');
       socket.off('day-vote-received');
@@ -86,6 +110,14 @@ export default function ModeratorView() {
     };
   }, []);
 
+  const startNight = () => {
+    socket.emit('start-night', { roomCode }, (response) => {
+      if (response.success) {
+        // State updated via socket events
+      }
+    });
+  };
+
   const resolveNight = () => {
     socket.emit('resolve-night', { roomCode }, (response) => {
       if (response.success) {
@@ -93,6 +125,7 @@ export default function ModeratorView() {
         setShowResult(true);
         if (!response.gameOver) {
           setGamePhase('day');
+          setNightSubPhase(null);
         }
         setNightActions([]);
         setAllNightActionsIn(false);
@@ -174,12 +207,28 @@ export default function ModeratorView() {
       {/* Header */}
       <div className="mod-header">
         <div className="phase-badge">
-          {gamePhase === 'night' ? '🌙' : '☀️'}
-          <span>{gamePhase === 'night' ? t('game.night') : t('game.day')}</span>
+          {gamePhase === 'night' ? '🌙' : gamePhase === 'roleReveal' ? '🎭' : '☀️'}
+          <span>
+            {gamePhase === 'night' ? t('game.night') :
+             gamePhase === 'roleReveal' ? t('roleReveal.title') :
+             t('game.day')}
+          </span>
         </div>
         <div className="round-badge">{t('game.round')} {round}</div>
         <div className="room-badge">#{roomCode}</div>
       </div>
+
+      {/* Night Sub-Phase Indicator */}
+      {gamePhase === 'night' && nightSubPhase && (
+        <div className="night-sub-phase-indicator">
+          <span className="sub-phase-emoji">
+            {nightSubPhase === 'done' ? '✅' : ROLE_EMOJIS[nightSubPhase] || '🌙'}
+          </span>
+          <span className="sub-phase-text">
+            {t(NIGHT_TURN_LABELS[nightSubPhase] || 'night.sleeping')}
+          </span>
+        </div>
+      )}
 
       {/* Result Overlay */}
       {showResult && (
@@ -265,7 +314,21 @@ export default function ModeratorView() {
         </div>
       </div>
 
-      {/* Night Phase Actions */}
+      {/* ===== ROLE REVEAL PHASE ===== */}
+      {gamePhase === 'roleReveal' && (
+        <div className="card">
+          <h2>🎭 {t('roleReveal.title')}</h2>
+          <p className="mod-hint">{t('roleReveal.moderatorHint')}</p>
+          <button
+            className="btn btn-primary btn-lg btn-start"
+            onClick={startNight}
+          >
+            🌙 {t('night.startNight')}
+          </button>
+        </div>
+      )}
+
+      {/* ===== NIGHT PHASE ACTIONS ===== */}
       {gamePhase === 'night' && (
         <div className="card">
           <h2>🌙 {t('moderator.nightActions')}</h2>
@@ -302,13 +365,14 @@ export default function ModeratorView() {
           <button
             className="btn btn-primary btn-lg"
             onClick={resolveNight}
+            disabled={!allNightActionsIn && nightSubPhase !== 'done'}
           >
             🌅 {t('night.resolve')}
           </button>
         </div>
       )}
 
-      {/* Day Phase Votes */}
+      {/* ===== DAY PHASE VOTES ===== */}
       {gamePhase === 'day' && (
         <div className="card">
           <h2>☀️ {t('moderator.dayVotes')}</h2>

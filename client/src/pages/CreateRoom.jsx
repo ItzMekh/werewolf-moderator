@@ -31,6 +31,8 @@ export default function CreateRoom() {
     socket.emit('create-room', (response) => {
       if (response.success) {
         setRoomCode(response.roomCode);
+        // Send initial role config so players joining immediately see it
+        socket.emit('update-role-config', { roomCode: response.roomCode, roleConfig });
       }
     });
 

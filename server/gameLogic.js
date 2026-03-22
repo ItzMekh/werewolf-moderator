@@ -31,12 +31,16 @@ function assignRoles(players, roleConfig) {
   return { success: true };
 }
 
+// Night turn order
+const NIGHT_TURN_ORDER = ['werewolf', 'bodyguard', 'doctor', 'seer'];
+
 // Create initial game state
 function createGameState(roleConfig) {
   return {
-    phase: 'night', // "night" | "day" | "lobby" | "finished"
+    phase: 'roleReveal', // "roleReveal" | "night" | "day" | "finished"
     round: 1,
     roleConfig,
+    nightSubPhase: null, // 'werewolf' | 'bodyguard' | 'doctor' | 'seer' | 'done'
     nightActions: {
       werewolfVotes: {},    // { voterId: targetName }
       seerCheck: null,       // targetName
@@ -48,6 +52,43 @@ function createGameState(roleConfig) {
     deaths: [],              // Deaths to announce
     log: []                  // Event log
   };
+}
+
+// Get the first night sub-phase (first alive role in turn order)
+function getFirstNightSubPhase(players) {
+  for (const role of NIGHT_TURN_ORDER) {
+    if (players.some(p => p.alive && p.role === role)) return role;
+  }
+  return 'done';
+}
+
+// Get the next night sub-phase after the current one
+function getNextNightSubPhase(currentSubPhase, players) {
+  const currentIndex = NIGHT_TURN_ORDER.indexOf(currentSubPhase);
+  for (let i = currentIndex + 1; i < NIGHT_TURN_ORDER.length; i++) {
+    const role = NIGHT_TURN_ORDER[i];
+    if (players.some(p => p.alive && p.role === role)) return role;
+  }
+  return 'done';
+}
+
+// Check if the current night sub-phase actions are complete
+function isNightSubPhaseComplete(gameState, players, subPhase) {
+  const alivePlayers = players.filter(p => p.alive);
+  switch (subPhase) {
+    case 'werewolf': {
+      const aliveWolves = alivePlayers.filter(p => p.role === 'werewolf');
+      return Object.keys(gameState.nightActions.werewolfVotes).length >= aliveWolves.length;
+    }
+    case 'bodyguard':
+      return gameState.nightActions.bodyguardProtect !== null;
+    case 'doctor':
+      return gameState.nightActions.doctorSave !== null;
+    case 'seer':
+      return gameState.nightActions.seerCheck !== null;
+    default:
+      return true;
+  }
 }
 
 // Get role info for a specific role
@@ -287,5 +328,8 @@ module.exports = {
   resolveDayVote,
   checkWinCondition,
   getDefaultRoleConfig,
-  allNightActionsSubmitted
+  allNightActionsSubmitted,
+  getFirstNightSubPhase,
+  getNextNightSubPhase,
+  isNightSubPhaseComplete
 };

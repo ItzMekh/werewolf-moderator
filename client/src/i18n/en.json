@@ -63,6 +63,12 @@
     "bodyguard": "Bodyguard",
     "villager": "Villager"
   },
+  "roleReveal": {
+    "title": "Role Assigned!",
+    "peekHint": "Press and hold to peek at your role",
+    "moderatorHint": "Players are checking their roles",
+    "waitForNight": "Waiting for moderator to start the night..."
+  },
   "game": {
     "night": "Night",
     "day": "Day",
@@ -80,6 +86,13 @@
     "doctorAction": "Choose a player to heal",
     "bodyguardAction": "Choose a player to protect",
     "villagerWait": "Sleep tight... wait for morning",
+    "sleeping": "Close your eyes...",
+    "werewolfTurn": "Werewolves, wake up!",
+    "bodyguardTurn": "Bodyguard, wake up!",
+    "doctorTurn": "Doctor, wake up!",
+    "seerTurn": "Seer, wake up!",
+    "allDone": "Everyone, close your eyes...",
+    "startNight": "Start Night",
     "waiting": "Waiting for other players...",
     "actionSubmitted": "Submitted! Waiting for others...",
     "resolve": "Resolve Night",

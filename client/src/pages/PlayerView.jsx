@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/index.jsx';
 import socket from '../socket.js';
@@ -22,6 +22,7 @@ export default function PlayerView() {
   const [roleEmoji, setRoleEmoji] = useState('');
   const [team, setTeam] = useState('');
   const [gamePhase, setGamePhase] = useState('waiting');
+  const [nightSubPhase, setNightSubPhase] = useState(null);
   const [round, setRound] = useState(0);
   const [players, setPlayers] = useState([]);
   const [alive, setAlive] = useState(true);
@@ -33,12 +34,29 @@ export default function PlayerView() {
   const [nightResult, setNightResult] = useState(null);
   const [dayResult, setDayResult] = useState(null);
   const [showResult, setShowResult] = useState(false);
-  const [showRole, setShowRole] = useState(false);
+  const [peeking, setPeeking] = useState(false);
   const [gameOver, setGameOver] = useState(null);
   const [voteCount, setVoteCount] = useState({ voted: 0, total: 0 });
   const [bodyguardError, setBodyguardError] = useState('');
   const [lobbyPlayers, setLobbyPlayers] = useState([]);
   const [roleConfig, setRoleConfig] = useState(null);
+
+  // Press-and-hold timer for role peek
+  const peekTimer = useRef(null);
+
+  const startPeek = useCallback(() => {
+    peekTimer.current = setTimeout(() => {
+      setPeeking(true);
+    }, 200);
+  }, []);
+
+  const stopPeek = useCallback(() => {
+    if (peekTimer.current) {
+      clearTimeout(peekTimer.current);
+      peekTimer.current = null;
+    }
+    setPeeking(false);
+  }, []);
 
   useEffect(() => {
     if (!playerName) {
@@ -46,7 +64,17 @@ export default function PlayerView() {
       return;
     }
 
-    // Lobby info (sent when joining)
+    // Request lobby info (fixes race condition)
+    socket.emit('request-lobby-info', { roomCode }, (response) => {
+      if (response && response.success) {
+        setLobbyPlayers(response.players);
+        if (response.roleConfig && Object.keys(response.roleConfig).length > 0) {
+          setRoleConfig(response.roleConfig);
+        }
+      }
+    });
+
+    // Lobby info (sent when joining — backup)
     socket.on('lobby-info', (data) => {
       setLobbyPlayers(data.players);
       if (data.roleConfig && Object.keys(data.roleConfig).length > 0) {
@@ -72,7 +100,6 @@ export default function PlayerView() {
       setRole(data.role);
       setRoleEmoji(data.emoji);
       setTeam(data.team);
-      setShowRole(true);
     });
 
     socket.on('werewolf-teammates', (data) => {
@@ -83,6 +110,25 @@ export default function PlayerView() {
       setGamePhase(data.phase);
       setRound(data.round);
       setPlayers(data.players);
+    });
+
+    // Night phase events
+    socket.on('night-started', (data) => {
+      setGamePhase('night');
+      setRound(data.round);
+      setNightSubPhase(data.nightSubPhase);
+      setActionSubmitted(false);
+      setSelectedTarget(null);
+      setWerewolfVotes({});
+      setSeerResult(null);
+      setBodyguardError('');
+    });
+
+    socket.on('night-sub-phase-changed', (data) => {
+      setNightSubPhase(data.nightSubPhase);
+      // Reset action state for new sub-phase
+      setActionSubmitted(false);
+      setSelectedTarget(null);
     });
 
     socket.on('werewolf-vote-update', (data) => {
@@ -102,6 +148,7 @@ export default function PlayerView() {
       setActionSubmitted(false);
       setSelectedTarget(null);
       setWerewolfVotes({});
+      setNightSubPhase(null);
       setBodyguardError('');
 
       const me = data.players.find(p => p.name === playerName);
@@ -116,6 +163,7 @@ export default function PlayerView() {
       setPlayers(data.players);
       setActionSubmitted(false);
       setSelectedTarget(null);
+      setNightSubPhase(data.nightSubPhase || null);
 
       const me = data.players.find(p => p.name === playerName);
       if (me && !me.alive) setAlive(false);
@@ -146,6 +194,8 @@ export default function PlayerView() {
       socket.off('role-assigned');
       socket.off('werewolf-teammates');
       socket.off('game-started');
+      socket.off('night-started');
+      socket.off('night-sub-phase-changed');
       socket.off('werewolf-vote-update');
       socket.off('seer-result');
       socket.off('night-result');
@@ -155,7 +205,7 @@ export default function PlayerView() {
       socket.off('game-ended');
       socket.off('room-closed');
     };
-  }, [playerName, navigate]);
+  }, [playerName, navigate, roomCode]);
 
   const submitNightAction = () => {
     if (!selectedTarget) return;
@@ -215,9 +265,9 @@ export default function PlayerView() {
       case 'seer':
         return alivePlayers.filter(p => p.name !== playerName);
       case 'doctor':
-        return alivePlayers;
+        return alivePlayers; // Doctor can save self
       case 'bodyguard':
-        return alivePlayers.filter(p => p.name !== playerName);
+        return alivePlayers; // Bodyguard can protect self
       default:
         return [];
     }
@@ -237,12 +287,30 @@ export default function PlayerView() {
 
     return Object.entries(roleConfig)
       .filter(([, count]) => count > 0)
-      .map(([role, count]) => ({
-        role,
+      .map(([roleName, count]) => ({
+        role: roleName,
         count,
-        emoji: ROLE_EMOJIS[role] || '👤',
+        emoji: ROLE_EMOJIS[roleName] || '👤',
         percent: Math.round((count / totalRoles) * 100)
       }));
+  };
+
+  // Check if it's this player's turn during night
+  const isMyNightTurn = () => {
+    if (gamePhase !== 'night' || !nightSubPhase || !role || !alive) return false;
+    if (nightSubPhase === 'done') return false;
+    return role === nightSubPhase;
+  };
+
+  const getNightSubPhaseText = () => {
+    switch (nightSubPhase) {
+      case 'werewolf': return t('night.werewolfTurn');
+      case 'bodyguard': return t('night.bodyguardTurn');
+      case 'doctor': return t('night.doctorTurn');
+      case 'seer': return t('night.seerTurn');
+      case 'done': return t('night.allDone');
+      default: return t('night.sleeping');
+    }
   };
 
   // Game Over Screen
@@ -292,40 +360,49 @@ export default function PlayerView() {
         {lang === 'th' ? 'EN' : 'TH'}
       </button>
 
-      {/* Role Card (tap to show/hide) */}
-      {role && (
-        <div className={`role-card ${showRole ? 'revealed' : ''}`} onClick={() => setShowRole(!showRole)}>
-          <div className="role-card-inner">
-            <div className="role-card-front">
-              <span>🂠</span>
-              <p>{t('game.yourRole')}</p>
-            </div>
-            <div className="role-card-back">
-              <span className="role-big-emoji">{roleEmoji}</span>
-              <h2>{t(`roles.${role}`)}</h2>
-              <span className={`team-label ${team}`}>
-                {team === 'werewolf' ? '🐺 Werewolf Team' : '🏘️ Village Team'}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Player Info Bar */}
       <div className="player-info-bar">
         <span className="player-name-badge">👤 {playerName}</span>
         <div className="phase-badge">
-          {gamePhase === 'night' ? '🌙' : gamePhase === 'day' ? '☀️' : '⏳'}
+          {gamePhase === 'night' ? '🌙' : gamePhase === 'day' ? '☀️' : gamePhase === 'roleReveal' ? '🎭' : '⏳'}
           <span>
             {gamePhase === 'night' ? t('game.night') :
-             gamePhase === 'day' ? t('game.day') : '...'}
+             gamePhase === 'day' ? t('game.day') :
+             gamePhase === 'roleReveal' ? t('roleReveal.title') : '...'}
           </span>
         </div>
         {round > 0 && <span className="round-badge">{t('game.round')} {round}</span>}
-        <span className={`alive-badge ${alive ? 'alive' : 'dead'}`}>
-          {alive ? '❤️' : '💀'}
-        </span>
+        {role && (
+          <span className={`alive-badge ${alive ? 'alive' : 'dead'}`}>
+            {alive ? '❤️' : '💀'}
+          </span>
+        )}
       </div>
+
+      {/* Role Peek Card (press and hold) */}
+      {role && (gamePhase === 'roleReveal' || gamePhase === 'day' || gamePhase === 'night') && (
+        <div
+          className={`role-peek-card ${peeking ? 'peeking' : ''}`}
+          onMouseDown={startPeek}
+          onMouseUp={stopPeek}
+          onMouseLeave={stopPeek}
+          onTouchStart={startPeek}
+          onTouchEnd={stopPeek}
+          onTouchCancel={stopPeek}
+        >
+          <div className="role-peek-hidden">
+            <span>🂠</span>
+            <p>{t('roleReveal.peekHint')}</p>
+          </div>
+          <div className="role-peek-revealed">
+            <span className="role-big-emoji">{roleEmoji}</span>
+            <h2>{t(`roles.${role}`)}</h2>
+            <span className={`team-label ${team}`}>
+              {team === 'werewolf' ? '🐺 Werewolf Team' : '🏘️ Village Team'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Result Overlay */}
       {showResult && (
@@ -371,86 +448,112 @@ export default function PlayerView() {
       )}
 
       {/* Dead Player - Just Watch */}
-      {!alive && gamePhase !== 'finished' && (
+      {!alive && gamePhase !== 'finished' && gamePhase !== 'waiting' && (
         <div className="card dead-card">
           <span className="skull-big">💀</span>
           <p>{t('game.dead')}</p>
         </div>
       )}
 
-      {/* Night Phase - Action UI */}
-      {gamePhase === 'night' && alive && (
-        <div className="card action-card">
-          <h2>🌙 {getActionText()}</h2>
-
-          {role === 'villager' ? (
-            <div className="villager-wait">
-              <span>😴</span>
-              <p>{t('night.villagerWait')}</p>
-            </div>
-          ) : actionSubmitted ? (
-            <div className="action-submitted">
-              <span>✅</span>
-              <p>{t('night.actionSubmitted')}</p>
-              {seerResult && role === 'seer' && (
-                <div className={`seer-result team-${seerResult.team}`}>
-                  <p>{seerResult.target}: <strong>{seerResult.emoji} {t(`roles.${seerResult.role}`)}</strong></p>
-                  <span className={`team-badge ${seerResult.team}`}>
-                    {seerResult.team === 'werewolf' ? '🐺' : '🏘️'} {seerResult.team}
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              {role === 'werewolf' && werewolfTeammates.length > 0 && (
-                <div className="teammates-info">
-                  <p>🐺 {werewolfTeammates.join(', ')}</p>
-                </div>
-              )}
-
-              {role === 'werewolf' && Object.keys(werewolfVotes).length > 0 && (
-                <div className="wolf-votes">
-                  {Object.entries(werewolfVotes).map(([voter, target]) => (
-                    <div key={voter} className="wolf-vote-item">
-                      <span>🐺 {voter}</span> → <span>{target}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {bodyguardError && (
-                <div className="error-msg">{bodyguardError}</div>
-              )}
-
-              <div className="target-list">
-                {getSelectablePlayers().map((p, i) => (
-                  <button
-                    key={i}
-                    className={`target-btn ${selectedTarget === p.name ? 'selected' : ''}`}
-                    onClick={() => {
-                      setSelectedTarget(p.name);
-                      setBodyguardError('');
-                    }}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={submitNightAction}
-                disabled={!selectedTarget}
-              >
-                {t('common.confirm')}
-              </button>
-            </>
-          )}
+      {/* ===== ROLE REVEAL PHASE ===== */}
+      {gamePhase === 'roleReveal' && alive && (
+        <div className="card role-reveal-card">
+          <div className="role-reveal-content">
+            <span className="role-reveal-icon">🎭</span>
+            <h2>{t('roleReveal.title')}</h2>
+            <p>{t('roleReveal.peekHint')}</p>
+            <p className="role-reveal-wait">{t('roleReveal.waitForNight')}</p>
+          </div>
         </div>
       )}
 
-      {/* Day Phase - Vote UI */}
+      {/* ===== NIGHT PHASE ===== */}
+      {gamePhase === 'night' && alive && (
+        <>
+          {/* Sleeping Screen (not your turn) */}
+          {!isMyNightTurn() && (
+            <div className="sleeping-screen">
+              <div className="sleeping-content">
+                <span className="sleeping-icon">😴</span>
+                <h2>{t('night.sleeping')}</h2>
+                <p className="night-sub-phase-text">{getNightSubPhaseText()}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Active Night Action (your turn) */}
+          {isMyNightTurn() && (
+            <div className="card action-card night-active">
+              <div className="turn-indicator">
+                <span className="turn-emoji">{roleEmoji}</span>
+                <h2>{getActionText()}</h2>
+              </div>
+
+              {actionSubmitted ? (
+                <div className="action-submitted">
+                  <span>✅</span>
+                  <p>{t('night.actionSubmitted')}</p>
+                  {seerResult && role === 'seer' && (
+                    <div className={`seer-result team-${seerResult.team}`}>
+                      <p>{seerResult.target}: <strong>{seerResult.emoji} {t(`roles.${seerResult.role}`)}</strong></p>
+                      <span className={`team-badge ${seerResult.team}`}>
+                        {seerResult.team === 'werewolf' ? '🐺' : '🏘️'} {seerResult.team}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {role === 'werewolf' && werewolfTeammates.length > 0 && (
+                    <div className="teammates-info">
+                      <p>🐺 {werewolfTeammates.join(', ')}</p>
+                    </div>
+                  )}
+
+                  {role === 'werewolf' && Object.keys(werewolfVotes).length > 0 && (
+                    <div className="wolf-votes">
+                      {Object.entries(werewolfVotes).map(([voter, target]) => (
+                        <div key={voter} className="wolf-vote-item">
+                          <span>🐺 {voter}</span> → <span>{target}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {bodyguardError && (
+                    <div className="error-msg">{bodyguardError}</div>
+                  )}
+
+                  <div className="target-list">
+                    {getSelectablePlayers().map((p, i) => (
+                      <button
+                        key={i}
+                        className={`target-btn ${selectedTarget === p.name ? 'selected' : ''}`}
+                        onClick={() => {
+                          setSelectedTarget(p.name);
+                          setBodyguardError('');
+                        }}
+                      >
+                        {p.name} {p.name === playerName ? `(${t('game.you')})` : ''}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    className="btn btn-primary btn-lg"
+                    onClick={submitNightAction}
+                    disabled={!selectedTarget}
+                  >
+                    {t('common.confirm')}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ===== DAY PHASE - Vote UI ===== */}
       {gamePhase === 'day' && alive && (
         <div className="card action-card">
           <h2>☀️ {t('dayPhase.vote')}</h2>
@@ -488,7 +591,7 @@ export default function PlayerView() {
         </div>
       )}
 
-      {/* Enhanced Waiting Lobby */}
+      {/* ===== WAITING LOBBY ===== */}
       {gamePhase === 'waiting' && (
         <>
           {/* Player List */}
@@ -516,17 +619,17 @@ export default function PlayerView() {
             <div className="card">
               <h2>🎲 {t('lobby.roleProbability')}</h2>
               <div className="role-probability-list">
-                {getRoleProbabilities().map(({ role, count, emoji, percent }) => (
-                  <div key={role} className="role-prob-row">
+                {getRoleProbabilities().map(({ role: roleName, count, emoji, percent }) => (
+                  <div key={roleName} className="role-prob-row">
                     <div className="role-prob-info">
                       <span className="role-emoji">{emoji}</span>
-                      <span className="role-name">{t(`roles.${role}`)}</span>
+                      <span className="role-name">{t(`roles.${roleName}`)}</span>
                       <span className="role-count">x{count}</span>
                     </div>
                     <div className="role-prob-bar-container">
                       <div className="role-prob-bar">
                         <div
-                          className={`role-prob-bar-fill ${role === 'werewolf' ? 'danger' : 'safe'}`}
+                          className={`role-prob-bar-fill ${roleName === 'werewolf' ? 'danger' : 'safe'}`}
                           style={{ width: `${percent}%` }}
                         />
                       </div>

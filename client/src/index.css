@@ -822,65 +822,69 @@ body::before {
   font-size: 1rem;
 }
 
-/* ===== ROLE CARD ===== */
-.role-card {
-  perspective: 1000px;
-  height: 160px;
-  margin-bottom: 16px;
-  cursor: pointer;
-}
-
-.role-card-inner {
+/* ===== ROLE PEEK CARD (press-and-hold) ===== */
+.role-peek-card {
   position: relative;
-  width: 100%;
-  height: 100%;
-  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-style: preserve-3d;
+  height: 120px;
+  margin-bottom: 16px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
-.role-card.revealed .role-card-inner {
-  transform: rotateY(180deg);
-}
-
-.role-card-front, .role-card-back {
+.role-peek-hidden {
   position: absolute;
   inset: 0;
-  backface-visibility: hidden;
-  border-radius: var(--radius);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-glass);
-}
-
-.role-card-front {
   background: linear-gradient(135deg, #1a1a3e, #111128);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius);
+  transition: opacity 0.2s ease;
+  z-index: 2;
 }
 
-.role-card-front span {
-  font-size: 3rem;
-  margin-bottom: 8px;
+.role-peek-card.peeking .role-peek-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
-.role-card-front p {
+.role-peek-hidden span {
+  font-size: 2.5rem;
+  margin-bottom: 6px;
+}
+
+.role-peek-hidden p {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
-.role-card-back {
+.role-peek-revealed {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   background: linear-gradient(135deg, #1a1a3e, var(--bg-secondary));
-  transform: rotateY(180deg);
+  border: 2px solid var(--accent-purple);
+  border-radius: var(--radius);
+  z-index: 1;
 }
 
 .role-big-emoji {
-  font-size: 3rem;
-  margin-bottom: 8px;
+  font-size: 2.5rem;
+  margin-bottom: 6px;
 }
 
-.role-card-back h2 {
-  font-size: 1.3rem;
-  margin-bottom: 8px;
+.role-peek-revealed h2 {
+  font-size: 1.2rem;
+  margin-bottom: 6px;
 }
 
 .team-label {
@@ -897,6 +901,131 @@ body::before {
 .team-label.werewolf {
   background: rgba(239, 68, 68, 0.15);
   color: var(--accent-red);
+}
+
+/* ===== ROLE REVEAL PHASE ===== */
+.role-reveal-card {
+  text-align: center;
+}
+
+.role-reveal-content {
+  padding: 20px;
+}
+
+.role-reveal-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.role-reveal-content h2 {
+  font-size: 1.3rem;
+  margin-bottom: 8px;
+}
+
+.role-reveal-content p {
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.role-reveal-wait {
+  font-size: 0.85rem;
+  color: var(--accent-purple);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ===== SLEEPING SCREEN ===== */
+.sleeping-screen {
+  position: relative;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #0a0a1a, #111128);
+  border: 1px solid var(--border-glass);
+  overflow: hidden;
+  min-height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sleeping-content {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.sleeping-icon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 16px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.sleeping-content h2 {
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.night-sub-phase-text {
+  color: var(--accent-purple);
+  font-size: 0.9rem;
+  animation: pulse 2s infinite;
+}
+
+/* ===== NIGHT ACTIVE TURN ===== */
+.night-active {
+  border: 2px solid var(--accent-purple);
+  animation: glow-border 2s infinite;
+}
+
+@keyframes glow-border {
+  0%, 100% { box-shadow: 0 0 8px rgba(124, 58, 237, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.5); }
+}
+
+.turn-indicator {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.turn-emoji {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* ===== NIGHT SUB-PHASE INDICATOR (Moderator) ===== */
+.night-sub-phase-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  margin-bottom: 16px;
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: var(--radius);
+  animation: glow-border 2s infinite;
+}
+
+.sub-phase-emoji {
+  font-size: 1.5rem;
+}
+
+.sub-phase-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent-purple);
+}
+
+.mod-hint {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
 }
 
 /* ===== ACTION CARD ===== */

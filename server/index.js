@@ -194,6 +194,21 @@ io.on('connection', (socket) => {
     socket.to(roomCode).emit('role-config-updated', { roleConfig });
   });
 
+  // Request lobby info (fixes race condition when PlayerView mounts after join)
+  socket.on('request-lobby-info', ({ roomCode }, callback) => {
+    const room = gameManager.getRoom(roomCode);
+    if (!room) return callback({ success: false });
+
+    callback({
+      success: true,
+      players: room.players.map(p => ({
+        name: p.name,
+        connected: p.connected
+      })),
+      roleConfig: room.settings.roles
+    });
+  });
+
   // ===== GAME START =====
 
   socket.on('start-game', ({ roomCode, roleConfig }, callback) => {
@@ -219,9 +234,9 @@ io.on('connection', (socket) => {
       });
     });
 
-    // Notify everyone that game started
+    // Notify everyone that game started (roleReveal phase)
     io.to(roomCode).emit('game-started', {
-      phase: 'night',
+      phase: 'roleReveal',
       round: 1,
       players: room.players.map(p => ({
         name: p.name,
@@ -246,6 +261,31 @@ io.on('connection', (socket) => {
         team: gameLogic.getRoleInfo(p.role).team,
         emoji: gameLogic.getRoleInfo(p.role).emoji
       }))
+    });
+
+    callback({ success: true });
+  });
+
+  // ===== START NIGHT (Moderator only) =====
+
+  socket.on('start-night', ({ roomCode }, callback) => {
+    const room = gameManager.getRoom(roomCode);
+    if (!room || !room.gameState) return callback({ success: false, error: 'No active game' });
+    if (room.moderatorId !== socket.id) return callback({ success: false, error: 'Not the moderator' });
+
+    room.gameState.phase = 'night';
+    room.gameState.nightSubPhase = gameLogic.getFirstNightSubPhase(room.players);
+    room.gameState.nightActions = {
+      werewolfVotes: {},
+      seerCheck: null,
+      doctorSave: null,
+      bodyguardProtect: null
+    };
+
+    io.to(roomCode).emit('night-started', {
+      phase: 'night',
+      round: room.gameState.round,
+      nightSubPhase: room.gameState.nightSubPhase
     });
 
     callback({ success: true });
@@ -335,10 +375,18 @@ io.on('connection', (socket) => {
         return callback({ success: false, error: 'Unknown action' });
     }
 
-    // Check if all night actions are in
-    const allDone = gameLogic.allNightActionsSubmitted(room.gameState, room.players);
-    if (allDone) {
-      io.to(room.moderatorId).emit('all-night-actions-received');
+    // Auto-advance night sub-phase when current role's turn is complete
+    if (gameLogic.isNightSubPhaseComplete(room.gameState, room.players, room.gameState.nightSubPhase)) {
+      const nextPhase = gameLogic.getNextNightSubPhase(room.gameState.nightSubPhase, room.players);
+      room.gameState.nightSubPhase = nextPhase;
+
+      io.to(roomCode).emit('night-sub-phase-changed', {
+        nightSubPhase: nextPhase
+      });
+
+      if (nextPhase === 'done') {
+        io.to(room.moderatorId).emit('all-night-actions-received');
+      }
     }
 
     callback({ success: true });
@@ -463,8 +511,16 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Transition to night with sub-phases
     room.gameState.phase = 'night';
     room.gameState.round += 1;
+    room.gameState.nightSubPhase = gameLogic.getFirstNightSubPhase(room.players);
+    room.gameState.nightActions = {
+      werewolfVotes: {},
+      seerCheck: null,
+      doctorSave: null,
+      bodyguardProtect: null
+    };
 
     io.to(roomCode).emit('day-result', {
       eliminated: result.eliminated,
@@ -473,6 +529,7 @@ io.on('connection', (socket) => {
       skipped: result.skipped,
       phase: 'night',
       round: room.gameState.round,
+      nightSubPhase: room.gameState.nightSubPhase,
       players: room.players.map(p => ({
         name: p.name,
         alive: p.alive
