@@ -1,19 +1,36 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
 const { OAuth2Client } = require('google-auth-library');
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'werewolf-secret-key-change-in-production';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
+// Lazy Prisma init - server works without DB (game doesn't need it)
+let prisma = null;
+function getPrisma() {
+  if (!prisma) {
+    try {
+      const { PrismaClient } = require('@prisma/client');
+      prisma = new PrismaClient();
+      console.log('Prisma client initialized');
+    } catch (err) {
+      console.error('Prisma init failed (auth/stats disabled):', err.message);
+      return null;
+    }
+  }
+  return prisma;
+}
+
 async function register(username, password) {
-  const existing = await prisma.player.findUnique({ where: { username } });
+  const db = getPrisma();
+  if (!db) return { error: 'Database unavailable' };
+
+  const existing = await db.player.findUnique({ where: { username } });
   if (existing) return { error: 'Username already taken' };
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const player = await prisma.player.create({
+  const player = await db.player.create({
     data: { username, passwordHash }
   });
 
@@ -22,7 +39,10 @@ async function register(username, password) {
 }
 
 async function login(username, password) {
-  const player = await prisma.player.findUnique({ where: { username } });
+  const db = getPrisma();
+  if (!db) return { error: 'Database unavailable' };
+
+  const player = await db.player.findUnique({ where: { username } });
   if (!player) return { error: 'Invalid username or password' };
 
   const valid = await bcrypt.compare(password, player.passwordHash);
@@ -41,7 +61,10 @@ function verifyToken(token) {
 }
 
 async function getPlayerStats(playerId) {
-  const gamePlayers = await prisma.gamePlayer.findMany({
+  const db = getPrisma();
+  if (!db) return { totalGames: 0, totalWins: 0, totalLosses: 0, winRate: 0, roles: {} };
+
+  const gamePlayers = await db.gamePlayer.findMany({
     where: { playerId },
     include: { role: true, game: true }
   });
@@ -75,10 +98,13 @@ async function getPlayerStats(playerId) {
 }
 
 async function saveGameStats(room, winnerTeam) {
+  const db = getPrisma();
+  if (!db) return null;
+
   const gameLogic = require('./gameLogic');
 
   // Create game record
-  const game = await prisma.game.create({
+  const game = await db.game.create({
     data: {
       roomCode: room.code,
       status: 'finished',
@@ -99,9 +125,9 @@ async function saveGameStats(room, winnerTeam) {
     const isWinner = (winnerTeam === roleInfo.team);
 
     // Find or create role
-    let role = await prisma.role.findUnique({ where: { name: player.role } });
+    let role = await db.role.findUnique({ where: { name: player.role } });
     if (!role) {
-      role = await prisma.role.create({
+      role = await db.role.create({
         data: {
           name: player.role,
           team: roleInfo.team,
@@ -110,7 +136,7 @@ async function saveGameStats(room, winnerTeam) {
       });
     }
 
-    await prisma.gamePlayer.create({
+    await db.gamePlayer.create({
       data: {
         gameId: game.id,
         playerId: player.dbPlayerId,
@@ -137,12 +163,15 @@ async function googleLogin(credential) {
   const payload = ticket.getPayload();
   const googleUsername = payload.name || payload.email.split('@')[0];
 
+  const db = getPrisma();
+  if (!db) return { error: 'Database unavailable' };
+
   // Find or create player with Google prefix to avoid conflicts
   const username = `g_${payload.sub.slice(-8)}`;
-  let player = await prisma.player.findUnique({ where: { username } });
+  let player = await db.player.findUnique({ where: { username } });
 
   if (!player) {
-    player = await prisma.player.create({
+    player = await db.player.create({
       data: {
         username: googleUsername,
         passwordHash: `google:${payload.sub}` // Not a real password hash
@@ -150,7 +179,7 @@ async function googleLogin(credential) {
     });
     // If username conflict, retry with unique suffix
     if (!player) {
-      player = await prisma.player.create({
+      player = await db.player.create({
         data: {
           username: `${googleUsername}_${payload.sub.slice(-4)}`,
           passwordHash: `google:${payload.sub}`
@@ -168,4 +197,4 @@ async function googleLogin(credential) {
   };
 }
 
-module.exports = { register, login, googleLogin, verifyToken, getPlayerStats, saveGameStats, prisma };
+module.exports = { register, login, googleLogin, verifyToken, getPlayerStats, saveGameStats, getPrisma };

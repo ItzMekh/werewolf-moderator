@@ -89,7 +89,10 @@ app.post('/api/google-login', async (req, res) => {
 });
 
 app.get('/api/players/:username/stats', async (req, res) => {
-  const player = await auth.prisma.player.findUnique({
+  const db = auth.getPrisma();
+  if (!db) return res.status(503).json({ error: 'Database unavailable' });
+
+  const player = await db.player.findUnique({
     where: { username: req.params.username }
   });
   if (!player) return res.status(404).json({ error: 'Player not found' });
