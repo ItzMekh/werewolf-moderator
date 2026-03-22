@@ -42,11 +42,15 @@ export default function PlayerView() {
 
   // Press-and-hold timer for role peek
   const peekTimer = useRef(null);
+  const [holdProgress, setHoldProgress] = useState(false);
 
   const startPeek = useCallback(() => {
+    setHoldProgress(true);
     peekTimer.current = setTimeout(() => {
       setPeeking(true);
-    }, 200);
+      // Haptic feedback on successful peek
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 600);
   }, []);
 
   const stopPeek = useCallback(() => {
@@ -55,6 +59,7 @@ export default function PlayerView() {
       peekTimer.current = null;
     }
     setPeeking(false);
+    setHoldProgress(false);
   }, []);
 
   const [connectionLost, setConnectionLost] = useState(false);
@@ -484,20 +489,26 @@ export default function PlayerView() {
         )}
       </div>
 
-      {/* Role Peek Card (press and hold) — hidden by default, revealed on peek */}
+      {/* Role Peek Card (press and hold) — hidden by default, revealed on hold */}
       {role && (gamePhase === 'roleReveal' || gamePhase === 'day' || gamePhase === 'night') && (
         <div
-          className={`role-peek-card ${peeking ? 'peeking' : ''}`}
+          className={`role-peek-card ${peeking ? 'peeking' : ''} ${holdProgress && !peeking ? 'holding' : ''}`}
           onMouseDown={startPeek}
           onMouseUp={stopPeek}
           onMouseLeave={stopPeek}
           onTouchStart={startPeek}
           onTouchEnd={stopPeek}
           onTouchCancel={stopPeek}
+          onContextMenu={e => e.preventDefault()}
         >
           <div className="role-peek-hidden">
             <span>🂠</span>
             <p>{t('roleReveal.peekHint')}</p>
+            {/* Hold progress ring */}
+            <svg className="hold-progress-ring" viewBox="0 0 44 44">
+              <circle className="hold-progress-bg" cx="22" cy="22" r="18" />
+              <circle className="hold-progress-fill" cx="22" cy="22" r="18" />
+            </svg>
           </div>
           <div className="role-peek-revealed">
             <span className="role-big-emoji">{roleEmoji}</span>

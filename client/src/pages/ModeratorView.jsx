@@ -237,15 +237,17 @@ export default function ModeratorView() {
         setShowResult(false);
         setNightSubPhase(null);
         setLobbyError('');
+      } else {
+        alert('❌ ไม่สามารถเริ่มเกมใหม่ได้: ' + response.error);
+        navigate('/');
       }
     });
   };
 
   const endGame = () => {
     socket.emit('end-game', { roomCode }, (response) => {
-      if (response.success) {
-        navigate('/');
-      }
+      // ถ้าระบบตอบกลับมาว่าไม่มีห้องแล้ว ก็เด้งออกไปหน้าแรกเลย
+      navigate('/');
     });
   };
 

@@ -151,6 +151,26 @@ io.on('connection', (socket) => {
 
   // ===== ROOM MANAGEMENT =====
 
+  socket.on('rejoin-moderator', (payload, callback) => {
+    const v = validate(schemas.rejoinModerator, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+
+    const roomCode = v.data.roomCode;
+    const room = gameManager.getRoom(roomCode);
+    if (!room) return callback({ success: false, error: 'Room was closed due to disconnection' });
+
+    room.moderatorId = socket.id;
+    socket.join(roomCode);
+    socket.data.roomCode = roomCode;
+    socket.data.isModerator = true;
+
+    callback({
+      success: true,
+      gameState: room.gameState,
+      lobbyInfo: room.gameState ? null : { players: room.players, roleConfig: room.settings.roles }
+    });
+  });
+
   socket.on('create-room', (callback) => {
     const room = gameManager.createRoom(socket.id);
     socket.join(room.code);
