@@ -3,7 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const { connectDB } = require('./db/mongodb');
+const { connectDB, isConnected, getLastError } = require('./db/mongodb');
 const gameManager = require('./gameManager');
 const gameLogic = require('./gameLogic');
 const auth = require('./auth');
@@ -58,6 +58,17 @@ const createRoomLimiter = rateLimit({
 // Health check
 app.get('/', (req, res) => {
   res.json({ status: 'Werewolf server running' });
+});
+
+// DB status (temporary debug)
+app.get('/api/db-status', (req, res) => {
+  const mongoose = require('mongoose');
+  res.json({
+    connected: isConnected(),
+    readyState: mongoose.connection.readyState,
+    error: getLastError(),
+    uri_host: (process.env.MONGODB_URI || '').replace(/\/\/.*@/, '//<credentials>@')
+  });
 });
 
 // ===== AUTH API (with rate limiting + Zod validation) =====
