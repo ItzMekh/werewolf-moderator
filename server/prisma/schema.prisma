@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Role {
+  id             Int          @id @default(autoincrement())
+  name           String       @unique
+  team           String       // "werewolf" | "village"
+  description    String?
+  hasNightAction Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  gamePlayers    GamePlayer[]
+}
+
+model Player {
+  id          Int          @id @default(autoincrement())
+  username    String
+  createdAt   DateTime     @default(now())
+  gamePlayers GamePlayer[]
+}
+
+model Game {
+  id          Int          @id @default(autoincrement())
+  roomCode    String
+  status      String       // "lobby" | "playing" | "finished"
+  winnerTeam  String?
+  playerCount Int
+  rounds      Int          @default(0)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime     @default(now())
+  gamePlayers GamePlayer[]
+  gameEvents  GameEvent[]
+}
+
+model GamePlayer {
+  id         Int     @id @default(autoincrement())
+  game       Game    @relation(fields: [gameId], references: [id])
+  gameId     Int
+  player     Player  @relation(fields: [playerId], references: [id])
+  playerId   Int
+  role       Role    @relation(fields: [roleId], references: [id])
+  roleId     Int
+  isAlive    Boolean @default(true)
+  deathRound Int?
+  deathCause String?
+  isWinner   Boolean @default(false)
+}
+
+model GameEvent {
+  id         Int      @id @default(autoincrement())
+  game       Game     @relation(fields: [gameId], references: [id])
+  gameId     Int
+  round      Int
+  phase      String   // "night" | "day"
+  actorName  String?
+  targetName String?
+  action     String   // "kill" | "check" | "save" | "protect" | "vote"
+  result     String?
+  createdAt  DateTime @default(now())
+}

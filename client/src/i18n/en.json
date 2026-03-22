@@ -1,0 +1,104 @@
+{
+  "app": {
+    "title": "Werewolf Moderator",
+    "subtitle": "Online Werewolf Game"
+  },
+  "home": {
+    "createRoom": "Create Room",
+    "joinRoom": "Join Room",
+    "createDesc": "For the game moderator",
+    "joinDesc": "For players"
+  },
+  "create": {
+    "title": "Create Room",
+    "back": "Back",
+    "creating": "Creating room..."
+  },
+  "join": {
+    "title": "Join Room",
+    "roomCode": "Room Code",
+    "playerName": "Player Name",
+    "join": "Join",
+    "joining": "Joining...",
+    "back": "Back"
+  },
+  "lobby": {
+    "roomCode": "Room Code",
+    "players": "Players",
+    "waiting": "Waiting for players to join...",
+    "startGame": "Start Game",
+    "minPlayers": "Need at least 4 players",
+    "roleConfig": "Role Configuration",
+    "total": "Total"
+  },
+  "roles": {
+    "werewolf": "Werewolf",
+    "seer": "Seer",
+    "doctor": "Doctor",
+    "bodyguard": "Bodyguard",
+    "villager": "Villager"
+  },
+  "game": {
+    "night": "Night",
+    "day": "Day",
+    "round": "Round",
+    "alive": "Alive",
+    "dead": "Dead",
+    "phase": "Phase",
+    "you": "You",
+    "yourRole": "Your Role"
+  },
+  "night": {
+    "title": "Night Phase",
+    "werewolfAction": "Choose a player to attack",
+    "seerAction": "Choose a player to investigate",
+    "doctorAction": "Choose a player to heal",
+    "bodyguardAction": "Choose a player to protect",
+    "villagerWait": "Sleep tight... wait for morning",
+    "waiting": "Waiting for other players...",
+    "actionSubmitted": "Submitted! Waiting for others...",
+    "resolve": "Resolve Night",
+    "allActionsIn": "All players have acted!",
+    "cannotProtectSame": "Cannot protect the same person two nights in a row"
+  },
+  "dayPhase": {
+    "title": "Day Phase",
+    "discussion": "Discussion Time",
+    "vote": "Vote to Eliminate",
+    "skip": "Skip Vote",
+    "resolve": "Resolve Votes",
+    "allVotesIn": "All votes are in!",
+    "voteCount": "Voted"
+  },
+  "result": {
+    "noOneDied": "No one died last night!",
+    "killed": "was killed!",
+    "saved": "was saved!",
+    "protected": "was protected!",
+    "eliminated": "was eliminated!",
+    "noElimination": "No one was eliminated",
+    "tied": "It's a tie! No one is eliminated"
+  },
+  "gameOver": {
+    "title": "Game Over!",
+    "villageWin": "Village Wins!",
+    "werewolfWin": "Werewolves Win!",
+    "reason": "Reason",
+    "playAgain": "Play Again",
+    "backToLobby": "Back to Home"
+  },
+  "moderator": {
+    "dashboard": "Dashboard",
+    "nightActions": "Night Actions",
+    "dayVotes": "Day Votes",
+    "endGame": "End Game",
+    "waitingFor": "Waiting for"
+  },
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "close": "Close",
+    "copied": "Copied!",
+    "share": "Share"
+  }
+}
