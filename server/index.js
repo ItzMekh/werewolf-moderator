@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const gameManager = require('./gameManager');
 const gameLogic = require('./gameLogic');
+const auth = require('./auth');
 
 const app = express();
 const server = http.createServer(app);
@@ -23,8 +24,64 @@ app.get('/', (req, res) => {
   res.json({ status: 'Werewolf server running' });
 });
 
+// ===== AUTH API =====
+
+app.post('/api/register', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+  if (username.length < 2 || username.length > 20) return res.status(400).json({ error: 'Username must be 2-20 characters' });
+  if (password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
+
+  const result = await auth.register(username, password);
+  if (result.error) return res.status(409).json({ error: result.error });
+  res.json(result);
+});
+
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+
+  const result = await auth.login(username, password);
+  if (result.error) return res.status(401).json({ error: result.error });
+  res.json(result);
+});
+
+app.get('/api/me/stats', async (req, res) => {
+  const header = req.headers.authorization;
+  if (!header) return res.status(401).json({ error: 'No token' });
+
+  const token = header.replace('Bearer ', '');
+  const user = auth.verifyToken(token);
+  if (!user) return res.status(401).json({ error: 'Invalid token' });
+
+  const stats = await auth.getPlayerStats(user.id);
+  res.json({ username: user.username, ...stats });
+});
+
+app.get('/api/players/:username/stats', async (req, res) => {
+  const player = await auth.prisma.player.findUnique({
+    where: { username: req.params.username }
+  });
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const stats = await auth.getPlayerStats(player.id);
+  res.json({ username: player.username, ...stats });
+});
+
+// ===== SOCKET.IO =====
+
 io.on('connection', (socket) => {
   console.log(`Connected: ${socket.id}`);
+
+  // Authenticate socket if token provided
+  const token = socket.handshake.auth?.token;
+  if (token) {
+    const user = auth.verifyToken(token);
+    if (user) {
+      socket.data.userId = user.id;
+      socket.data.authUsername = user.username;
+    }
+  }
 
   // ===== ROOM MANAGEMENT =====
 
@@ -42,6 +99,11 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Link db player id if authenticated
+    if (socket.data.userId) {
+      result.player.dbPlayerId = socket.data.userId;
+    }
+
     socket.join(roomCode);
     socket.data.roomCode = roomCode;
     socket.data.playerName = playerName;
@@ -54,7 +116,29 @@ io.on('connection', (socket) => {
       }))
     });
 
+    // Send current lobby info to the joining player
+    socket.emit('lobby-info', {
+      players: result.room.players.map(p => ({
+        name: p.name,
+        connected: p.connected
+      })),
+      roleConfig: result.room.settings.roles
+    });
+
     callback({ success: true, player: { name: result.player.name } });
+  });
+
+  // ===== LOBBY: ROLE CONFIG BROADCAST =====
+
+  socket.on('update-role-config', ({ roomCode, roleConfig }) => {
+    const room = gameManager.getRoom(roomCode);
+    if (!room) return;
+    if (room.moderatorId !== socket.id) return;
+
+    room.settings.roles = roleConfig;
+
+    // Broadcast to all players in room
+    socket.to(roomCode).emit('role-config-updated', { roleConfig });
   });
 
   // ===== GAME START =====
@@ -183,7 +267,6 @@ io.on('connection', (socket) => {
 
       case 'bodyguard-protect':
         if (player.role !== 'bodyguard') return callback({ success: false, error: 'Not a bodyguard' });
-        // Can't protect same person two nights in a row
         if (target === lastBodyguardTarget) {
           return callback({ success: false, error: 'Cannot protect the same person two nights in a row' });
         }
@@ -232,6 +315,12 @@ io.on('connection', (socket) => {
           emoji: gameLogic.getRoleInfo(p.role).emoji
         }))
       });
+
+      // Save stats for logged-in players
+      auth.saveGameStats(room, winCheck.winner).catch(err => {
+        console.error('Failed to save game stats:', err);
+      });
+
       callback({ success: true, result, gameOver: true, winner: winCheck.winner });
       return;
     }
@@ -251,7 +340,6 @@ io.on('connection', (socket) => {
       }))
     });
 
-    // Send seer result only to moderator (seer already got it instantly)
     if (result.seerResult) {
       io.to(room.moderatorId).emit('seer-check-result', result.seerResult);
     }
@@ -271,13 +359,11 @@ io.on('connection', (socket) => {
 
     room.gameState.dayVotes[player.name] = target;
 
-    // Notify moderator of vote
     io.to(room.moderatorId).emit('day-vote-received', {
       voter: player.name,
       target
     });
 
-    // Broadcast vote count update
     const alivePlayers = room.players.filter(p => p.alive);
     const votedCount = Object.keys(room.gameState.dayVotes).length;
     io.to(roomCode).emit('vote-count-update', {
@@ -285,7 +371,6 @@ io.on('connection', (socket) => {
       total: alivePlayers.length
     });
 
-    // Check if all alive players have voted
     if (votedCount >= alivePlayers.length) {
       io.to(room.moderatorId).emit('all-day-votes-received');
     }
@@ -302,7 +387,6 @@ io.on('connection', (socket) => {
 
     const result = gameLogic.resolveDayVote(room.gameState, room.players);
 
-    // Check win condition
     const winCheck = gameLogic.checkWinCondition(room.players);
 
     if (winCheck.gameOver) {
@@ -317,11 +401,15 @@ io.on('connection', (socket) => {
           emoji: gameLogic.getRoleInfo(p.role).emoji
         }))
       });
+
+      auth.saveGameStats(room, winCheck.winner).catch(err => {
+        console.error('Failed to save game stats:', err);
+      });
+
       callback({ success: true, result, gameOver: true, winner: winCheck.winner });
       return;
     }
 
-    // Move to next night
     room.gameState.phase = 'night';
     room.gameState.round += 1;
 
@@ -357,7 +445,6 @@ io.on('connection', (socket) => {
       }))
     });
 
-    // Reset game state but keep room
     room.gameState = null;
     room.players.forEach(p => {
       p.role = null;

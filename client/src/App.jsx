@@ -4,6 +4,8 @@ import CreateRoom from './pages/CreateRoom.jsx';
 import JoinRoom from './pages/JoinRoom.jsx';
 import ModeratorView from './pages/ModeratorView.jsx';
 import PlayerView from './pages/PlayerView.jsx';
+import Login from './pages/Login.jsx';
+import Profile from './pages/Profile.jsx';
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
         <Route path="/join" element={<JoinRoom />} />
         <Route path="/moderator/:roomCode" element={<ModeratorView />} />
         <Route path="/play/:roomCode" element={<PlayerView />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </div>
   );

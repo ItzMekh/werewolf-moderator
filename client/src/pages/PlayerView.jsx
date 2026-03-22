@@ -3,6 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../i18n/index.jsx';
 import socket from '../socket.js';
 
+const ROLE_EMOJIS = {
+  werewolf: '🐺',
+  seer: '👁️',
+  doctor: '💊',
+  bodyguard: '🛡️',
+  villager: '👤'
+};
+
 export default function PlayerView() {
   const { roomCode } = useParams();
   const navigate = useNavigate();
@@ -29,12 +37,36 @@ export default function PlayerView() {
   const [gameOver, setGameOver] = useState(null);
   const [voteCount, setVoteCount] = useState({ voted: 0, total: 0 });
   const [bodyguardError, setBodyguardError] = useState('');
+  const [lobbyPlayers, setLobbyPlayers] = useState([]);
+  const [roleConfig, setRoleConfig] = useState(null);
 
   useEffect(() => {
     if (!playerName) {
       navigate('/join');
       return;
     }
+
+    // Lobby info (sent when joining)
+    socket.on('lobby-info', (data) => {
+      setLobbyPlayers(data.players);
+      if (data.roleConfig && Object.keys(data.roleConfig).length > 0) {
+        setRoleConfig(data.roleConfig);
+      }
+    });
+
+    // Real-time player list updates
+    socket.on('player-joined', ({ players: updatedPlayers }) => {
+      setLobbyPlayers(updatedPlayers);
+    });
+
+    socket.on('player-left', ({ players: updatedPlayers }) => {
+      setLobbyPlayers(updatedPlayers);
+    });
+
+    // Role config updates from moderator
+    socket.on('role-config-updated', ({ roleConfig: newConfig }) => {
+      setRoleConfig(newConfig);
+    });
 
     socket.on('role-assigned', (data) => {
       setRole(data.role);
@@ -72,7 +104,6 @@ export default function PlayerView() {
       setWerewolfVotes({});
       setBodyguardError('');
 
-      // Check if this player died
       const me = data.players.find(p => p.name === playerName);
       if (me && !me.alive) setAlive(false);
     });
@@ -108,6 +139,10 @@ export default function PlayerView() {
     });
 
     return () => {
+      socket.off('lobby-info');
+      socket.off('player-joined');
+      socket.off('player-left');
+      socket.off('role-config-updated');
       socket.off('role-assigned');
       socket.off('werewolf-teammates');
       socket.off('game-started');
@@ -174,16 +209,15 @@ export default function PlayerView() {
 
     switch (role) {
       case 'werewolf':
-        // Can't target other werewolves
         return alivePlayers.filter(p =>
           p.name !== playerName && !werewolfTeammates.includes(p.name)
         );
       case 'seer':
         return alivePlayers.filter(p => p.name !== playerName);
       case 'doctor':
-        return alivePlayers; // Can save self
+        return alivePlayers;
       case 'bodyguard':
-        return alivePlayers.filter(p => p.name !== playerName); // Can't protect self
+        return alivePlayers.filter(p => p.name !== playerName);
       default:
         return [];
     }
@@ -193,6 +227,22 @@ export default function PlayerView() {
     setShowResult(false);
     setNightResult(null);
     setDayResult(null);
+  };
+
+  // Calculate role probabilities
+  const getRoleProbabilities = () => {
+    if (!roleConfig) return [];
+    const totalRoles = Object.values(roleConfig).reduce((a, b) => a + b, 0);
+    if (totalRoles === 0) return [];
+
+    return Object.entries(roleConfig)
+      .filter(([, count]) => count > 0)
+      .map(([role, count]) => ({
+        role,
+        count,
+        emoji: ROLE_EMOJIS[role] || '👤',
+        percent: Math.round((count / totalRoles) * 100)
+      }));
   };
 
   // Game Over Screen
@@ -353,14 +403,12 @@ export default function PlayerView() {
             </div>
           ) : (
             <>
-              {/* Werewolf teammates info */}
               {role === 'werewolf' && werewolfTeammates.length > 0 && (
                 <div className="teammates-info">
                   <p>🐺 {werewolfTeammates.join(', ')}</p>
                 </div>
               )}
 
-              {/* Werewolf vote tracking */}
               {role === 'werewolf' && Object.keys(werewolfVotes).length > 0 && (
                 <div className="wolf-votes">
                   {Object.entries(werewolfVotes).map(([voter, target]) => (
@@ -440,14 +488,65 @@ export default function PlayerView() {
         </div>
       )}
 
-      {/* Waiting state */}
+      {/* Enhanced Waiting Lobby */}
       {gamePhase === 'waiting' && (
-        <div className="card">
-          <div className="waiting-game">
-            <span className="spin">🐺</span>
-            <p>{t('lobby.waiting')}</p>
+        <>
+          {/* Player List */}
+          <div className="card">
+            <h2>{t('lobby.players')} ({lobbyPlayers.length})</h2>
+            {lobbyPlayers.length === 0 ? (
+              <div className="waiting-game">
+                <span className="spin">🐺</span>
+                <p>{t('lobby.waiting')}</p>
+              </div>
+            ) : (
+              <div className="player-list">
+                {lobbyPlayers.map((p, i) => (
+                  <div key={i} className={`player-chip ${p.name === playerName ? 'is-me' : ''}`}>
+                    <span className="player-number">{i + 1}</span>
+                    {p.name} {p.name === playerName ? `(${t('game.you')})` : ''}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+
+          {/* Role Probabilities */}
+          {roleConfig && (
+            <div className="card">
+              <h2>🎲 {t('lobby.roleProbability')}</h2>
+              <div className="role-probability-list">
+                {getRoleProbabilities().map(({ role, count, emoji, percent }) => (
+                  <div key={role} className="role-prob-row">
+                    <div className="role-prob-info">
+                      <span className="role-emoji">{emoji}</span>
+                      <span className="role-name">{t(`roles.${role}`)}</span>
+                      <span className="role-count">x{count}</span>
+                    </div>
+                    <div className="role-prob-bar-container">
+                      <div className="role-prob-bar">
+                        <div
+                          className={`role-prob-bar-fill ${role === 'werewolf' ? 'danger' : 'safe'}`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                      <span className="role-prob-percent">{percent}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!roleConfig && (
+            <div className="card">
+              <div className="waiting-game">
+                <span className="spin">🐺</span>
+                <p>{t('lobby.waitingModerator')}</p>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

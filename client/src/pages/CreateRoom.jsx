@@ -51,10 +51,17 @@ export default function CreateRoom() {
   const totalRoles = Object.values(roleConfig).reduce((a, b) => a + b, 0);
 
   const updateRole = (role, delta) => {
-    setRoleConfig(prev => ({
-      ...prev,
-      [role]: Math.max(role === 'werewolf' ? 1 : 0, prev[role] + delta)
-    }));
+    setRoleConfig(prev => {
+      const updated = {
+        ...prev,
+        [role]: Math.max(role === 'werewolf' ? 1 : 0, prev[role] + delta)
+      };
+      // Broadcast to players in room
+      if (roomCode) {
+        socket.emit('update-role-config', { roomCode, roleConfig: updated });
+      }
+      return updated;
+    });
   };
 
   const copyCode = () => {

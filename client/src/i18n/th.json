@@ -9,6 +9,28 @@
     "createDesc": "สำหรับผู้ดำเนินเกม",
     "joinDesc": "สำหรับผู้เล่น"
   },
+  "auth": {
+    "login": "เข้าสู่ระบบ",
+    "register": "สมัครสมาชิก",
+    "logout": "ออกจากระบบ",
+    "username": "ชื่อผู้ใช้",
+    "password": "รหัสผ่าน",
+    "usernamePlaceholder": "ใส่ชื่อผู้ใช้",
+    "passwordPlaceholder": "ใส่รหัสผ่าน",
+    "hasAccount": "มีบัญชีแล้ว? เข้าสู่ระบบ",
+    "noAccount": "ยังไม่มีบัญชี? สมัครสมาชิก",
+    "loginHint": "เข้าสู่ระบบเพื่อบันทึกสถิติการเล่น"
+  },
+  "stats": {
+    "overview": "สถิติรวม",
+    "totalGames": "เกมทั้งหมด",
+    "wins": "ชนะ",
+    "losses": "แพ้",
+    "winRate": "อัตราชนะ",
+    "byRole": "สถิติแต่ละบทบาท",
+    "noGames": "ยังไม่มีข้อมูลการเล่น",
+    "played": "ครั้ง"
+  },
   "create": {
     "title": "สร้างห้อง",
     "back": "กลับ",
@@ -26,10 +48,12 @@
     "roomCode": "รหัสห้อง",
     "players": "ผู้เล่น",
     "waiting": "รอผู้เล่นเข้าร่วม...",
+    "waitingModerator": "รอผู้ดำเนินเกมตั้งค่า...",
     "startGame": "เริ่มเกม",
     "minPlayers": "ต้องมีผู้เล่นอย่างน้อย 4 คน",
     "roleConfig": "ตั้งค่าบทบาท",
-    "total": "รวม"
+    "total": "รวม",
+    "roleProbability": "โอกาสได้รับบทบาท"
   },
   "roles": {
     "werewolf": "หมาป่า",

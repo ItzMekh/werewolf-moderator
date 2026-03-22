@@ -9,6 +9,28 @@
     "createDesc": "For the game moderator",
     "joinDesc": "For players"
   },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "username": "Username",
+    "password": "Password",
+    "usernamePlaceholder": "Enter username",
+    "passwordPlaceholder": "Enter password",
+    "hasAccount": "Already have an account? Login",
+    "noAccount": "Don't have an account? Register",
+    "loginHint": "Login to save your game stats"
+  },
+  "stats": {
+    "overview": "Overview",
+    "totalGames": "Total Games",
+    "wins": "Wins",
+    "losses": "Losses",
+    "winRate": "Win Rate",
+    "byRole": "Stats by Role",
+    "noGames": "No games played yet",
+    "played": "played"
+  },
   "create": {
     "title": "Create Room",
     "back": "Back",
@@ -26,10 +48,12 @@
     "roomCode": "Room Code",
     "players": "Players",
     "waiting": "Waiting for players to join...",
+    "waitingModerator": "Waiting for moderator to configure...",
     "startGame": "Start Game",
     "minPlayers": "Need at least 4 players",
     "roleConfig": "Role Configuration",
-    "total": "Total"
+    "total": "Total",
+    "roleProbability": "Role Probability"
   },
   "roles": {
     "werewolf": "Werewolf",

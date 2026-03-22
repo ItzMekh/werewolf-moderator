@@ -5,11 +5,26 @@ export default function Home() {
   const navigate = useNavigate();
   const { t, lang, toggleLang } = useLanguage();
 
+  const user = JSON.parse(localStorage.getItem('werewolf-user') || 'null');
+
   return (
     <div className="page home-page">
       <button className="lang-toggle" onClick={toggleLang}>
         {lang === 'th' ? 'EN' : 'TH'}
       </button>
+
+      {/* Auth Bar */}
+      <div className="auth-bar">
+        {user ? (
+          <button className="btn-auth" onClick={() => navigate('/profile')}>
+            👤 {user.username}
+          </button>
+        ) : (
+          <button className="btn-auth" onClick={() => navigate('/login')}>
+            {t('auth.login')}
+          </button>
+        )}
+      </div>
 
       <div className="hero">
         <div className="wolf-icon">🐺</div>
@@ -34,6 +49,10 @@ export default function Home() {
           </div>
         </button>
       </div>
+
+      {!user && (
+        <p className="login-hint">{t('auth.loginHint')}</p>
+      )}
     </div>
   );
 }

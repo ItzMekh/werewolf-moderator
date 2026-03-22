@@ -1038,6 +1038,242 @@ body::before {
   to { transform: rotate(360deg); }
 }
 
+/* ===== AUTH BAR ===== */
+.auth-bar {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 100;
+}
+
+.btn-auth {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-auth:hover {
+  background: var(--bg-card-hover);
+  transform: scale(1.05);
+}
+
+.login-hint {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 24px;
+}
+
+/* ===== LOGIN PAGE ===== */
+.btn-switch-auth {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--accent-purple);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 12px;
+  margin-top: 8px;
+  transition: var(--transition);
+}
+
+.btn-switch-auth:hover {
+  color: var(--text-primary);
+}
+
+/* ===== PROFILE PAGE ===== */
+.profile-header {
+  text-align: center;
+  padding: 30px 0 20px;
+}
+
+.profile-header .avatar {
+  font-size: 4rem;
+  margin-bottom: 8px;
+}
+
+.profile-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.stats-overview {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stat-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-box.win {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.stat-box.lose {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.stat-number {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.stat-box.win .stat-number { color: var(--accent-green); }
+.stat-box.lose .stat-number { color: var(--accent-red); }
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.role-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.role-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.role-stat-row:last-child {
+  border-bottom: none;
+}
+
+.role-stat-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+}
+
+.role-stat-numbers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.role-stat-numbers .played {
+  color: var(--text-secondary);
+}
+
+.role-stat-numbers .wins {
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.role-stat-numbers .losses {
+  color: var(--accent-red);
+  font-weight: 600;
+}
+
+.win-bar {
+  width: 50px;
+  height: 6px;
+  background: rgba(239, 68, 68, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.win-bar-fill {
+  height: 100%;
+  background: var(--accent-green);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* ===== ROLE PROBABILITY (Player Lobby) ===== */
+.player-chip.is-me {
+  border-color: var(--accent-purple);
+  background: rgba(124, 58, 237, 0.15);
+}
+
+.role-probability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.role-prob-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.role-prob-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 130px;
+}
+
+.role-prob-info .role-count {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.role-prob-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.role-prob-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.role-prob-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.role-prob-bar-fill.danger {
+  background: linear-gradient(90deg, var(--accent-red), #f87171);
+}
+
+.role-prob-bar-fill.safe {
+  background: linear-gradient(90deg, var(--accent-blue), #60a5fa);
+}
+
+.role-prob-percent {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  min-width: 36px;
+  text-align: right;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 400px) {
   .hero h1 {
