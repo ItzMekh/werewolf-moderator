@@ -57,14 +57,65 @@ export default function PlayerView() {
     setPeeking(false);
   }, []);
 
+  const [connectionLost, setConnectionLost] = useState(false);
+
   useEffect(() => {
     if (!playerName) {
       navigate('/join');
       return;
     }
 
-    // Request lobby info (emit-based, no callback — uses lobby-info listener below)
-    socket.emit('request-lobby-info', { roomCode });
+    // Auto-rejoin on socket reconnect (server restart or network drop)
+    const handleReconnect = () => {
+      console.log('Socket reconnected — attempting rejoin...');
+      socket.emit('rejoin-room', { roomCode, playerName }, (response) => {
+        if (response.success) {
+          console.log('Rejoin successful');
+          setConnectionLost(false);
+
+          if (response.gameState) {
+            // Restore game state
+            const gs = response.gameState;
+            setRole(gs.role);
+            setRoleEmoji(gs.emoji);
+            setTeam(gs.team);
+            setGamePhase(gs.phase);
+            setRound(gs.round);
+            setNightSubPhase(gs.nightSubPhase);
+            setAlive(gs.alive);
+            setPlayers(gs.players);
+            setActionSubmitted(false);
+            setSelectedTarget(null);
+            if (gs.werewolfTeammates) {
+              setWerewolfTeammates(gs.werewolfTeammates);
+            }
+          } else if (response.lobbyInfo) {
+            // Still in lobby
+            setGamePhase('waiting');
+            setLobbyPlayers(response.lobbyInfo.players);
+            if (response.lobbyInfo.roleConfig) {
+              setRoleConfig(response.lobbyInfo.roleConfig);
+            }
+          }
+        } else {
+          console.log('Rejoin failed:', response.error);
+          // Room gone — go home
+          navigate('/');
+        }
+      });
+    };
+
+    const handleDisconnect = () => {
+      setConnectionLost(true);
+    };
+
+    socket.on('connect', handleReconnect);
+    socket.on('disconnect', handleDisconnect);
+
+    // If already connected, request lobby info as before
+    if (socket.connected) {
+      socket.emit('request-lobby-info', { roomCode });
+    }
 
     // Lobby info (sent by server on join or request-lobby-info)
     socket.on('lobby-info', (data) => {
@@ -205,7 +256,22 @@ export default function PlayerView() {
       navigate('/');
     });
 
+    socket.on('player-reconnected', ({ players: updatedPlayers }) => {
+      setPlayers(updatedPlayers);
+      setLobbyPlayers(updatedPlayers);
+    });
+
+    socket.on('moderator-disconnected', () => {
+      setConnectionLost(prev => prev); // keep existing state, moderator will reconnect
+    });
+
+    socket.on('moderator-reconnected', () => {
+      // moderator is back, nothing special needed
+    });
+
     return () => {
+      socket.off('connect', handleReconnect);
+      socket.off('disconnect', handleDisconnect);
       socket.off('lobby-info');
       socket.off('player-joined');
       socket.off('player-left');
@@ -224,6 +290,9 @@ export default function PlayerView() {
       socket.off('game-reset');
       socket.off('game-ended');
       socket.off('room-closed');
+      socket.off('player-reconnected');
+      socket.off('moderator-disconnected');
+      socket.off('moderator-reconnected');
     };
   }, [playerName, navigate, roomCode]);
 
@@ -388,6 +457,13 @@ export default function PlayerView() {
       <button className="lang-toggle" onClick={toggleLang}>
         {lang === 'th' ? 'EN' : 'TH'}
       </button>
+
+      {/* Connection Lost Banner */}
+      {connectionLost && (
+        <div className="connection-lost-banner">
+          ⚡ {lang === 'th' ? 'ขาดการเชื่อมต่อ... กำลังเชื่อมต่อใหม่' : 'Connection lost... Reconnecting'}
+        </div>
+      )}
 
       {/* Player Info Bar */}
       <div className="player-info-bar">

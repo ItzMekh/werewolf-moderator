@@ -13,7 +13,13 @@
       "Bash(vercel --yes --prod)",
       "Bash(railway login:*)",
       "Bash(railway whoami:*)",
-      "Bash(railway version:*)"
+      "Bash(railway version:*)",
+      "Bash(timeout 8 node index.js)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npm uninstall:*)",
+      "Bash(ls \"c:/Users/Mekh/Desktop/Project/\\(web app\\)werewolf-moderator/server/prisma/\")",
+      "Bash(ls \"c:/Users/Mekh/Desktop/Project/\\(web app\\)werewolf-moderator/server/.env\")",
+      "Bash(ls \"c:/Users/Mekh/Desktop/Project/\\(web app\\)werewolf-moderator/server/models/\")"
     ]
   }
 }

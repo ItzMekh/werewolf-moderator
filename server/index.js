@@ -2,9 +2,12 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const { connectDB } = require('./db/mongodb');
 const gameManager = require('./gameManager');
 const gameLogic = require('./gameLogic');
 const auth = require('./auth');
+const { schemas, validate } = require('./validation');
 
 const app = express();
 const server = http.createServer(app);
@@ -34,21 +37,37 @@ const io = new Server(server, { cors: corsOptions });
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// ===== RATE LIMITING =====
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30,                   // 30 requests per window per IP
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const createRoomLimiter = rateLimit({
+  windowMs: 60 * 1000,       // 1 minute
+  max: 5,                     // 5 rooms per minute per IP
+  message: { error: 'Too many rooms created, please wait' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // Health check
 app.get('/', (req, res) => {
   res.json({ status: 'Werewolf server running' });
 });
 
-// ===== AUTH API =====
+// ===== AUTH API (with rate limiting + Zod validation) =====
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', authLimiter, async (req, res) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-    if (username.length < 2 || username.length > 20) return res.status(400).json({ error: 'Username must be 2-20 characters' });
-    if (password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
+    const v = validate(schemas.registerBody, req.body);
+    if (!v.success) return res.status(400).json({ error: v.error });
 
-    const result = await auth.register(username, password);
+    const result = await auth.register(v.data.username, v.data.password);
     if (result.error) return res.status(409).json({ error: result.error });
     res.json(result);
   } catch (err) {
@@ -57,12 +76,12 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', authLimiter, async (req, res) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    const v = validate(schemas.loginBody, req.body);
+    if (!v.success) return res.status(400).json({ error: v.error });
 
-    const result = await auth.login(username, password);
+    const result = await auth.login(v.data.username, v.data.password);
     if (result.error) return res.status(401).json({ error: result.error });
     res.json(result);
   } catch (err) {
@@ -88,13 +107,12 @@ app.get('/api/me/stats', async (req, res) => {
   }
 });
 
-// Google Login
-app.post('/api/google-login', async (req, res) => {
+app.post('/api/google-login', authLimiter, async (req, res) => {
   try {
-    const { credential } = req.body;
-    if (!credential) return res.status(400).json({ error: 'No credential provided' });
+    const v = validate(schemas.googleLoginBody, req.body);
+    if (!v.success) return res.status(400).json({ error: v.error });
 
-    const result = await auth.googleLogin(credential);
+    const result = await auth.googleLogin(v.data.credential);
     if (result.error) return res.status(401).json({ error: result.error });
     res.json(result);
   } catch (err) {
@@ -105,12 +123,7 @@ app.post('/api/google-login', async (req, res) => {
 
 app.get('/api/players/:username/stats', async (req, res) => {
   try {
-    const db = auth.getPrisma();
-    if (!db) return res.status(503).json({ error: 'Database unavailable' });
-
-    const player = await db.player.findUnique({
-      where: { username: req.params.username }
-    });
+    const player = await auth.getPlayerByUsername(req.params.username);
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
     const stats = await auth.getPlayerStats(player.id);
@@ -141,11 +154,17 @@ io.on('connection', (socket) => {
   socket.on('create-room', (callback) => {
     const room = gameManager.createRoom(socket.id);
     socket.join(room.code);
+    socket.data.roomCode = room.code;
+    socket.data.isModerator = true;
     console.log(`Room created: ${room.code} by ${socket.id}`);
     callback({ success: true, roomCode: room.code });
   });
 
-  socket.on('join-room', ({ roomCode, playerName }, callback) => {
+  socket.on('join-room', (payload, callback) => {
+    const v = validate(schemas.joinRoom, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode, playerName } = v.data;
+
     const result = gameManager.joinRoom(roomCode, playerName, socket.id);
     if (result.error) {
       callback({ success: false, error: result.error });
@@ -155,6 +174,7 @@ io.on('connection', (socket) => {
     // Link db player id if authenticated
     if (socket.data.userId) {
       result.player.dbPlayerId = socket.data.userId;
+      gameManager.syncRoom(roomCode);
     }
 
     socket.join(roomCode);
@@ -181,21 +201,159 @@ io.on('connection', (socket) => {
     callback({ success: true, player: { name: result.player.name } });
   });
 
+  // ===== REJOIN: Player reconnection after server restart or disconnect =====
+
+  socket.on('rejoin-room', (payload, callback) => {
+    const v = validate(schemas.rejoinRoom, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode, playerName } = v.data;
+
+    const result = gameManager.reconnectPlayer(roomCode, playerName, socket.id);
+    if (!result) {
+      return callback({ success: false, error: 'Cannot rejoin — room not found or player not disconnected' });
+    }
+
+    // Link db player id if authenticated
+    if (socket.data.userId) {
+      result.player.dbPlayerId = socket.data.userId;
+      gameManager.syncRoom(roomCode);
+    }
+
+    socket.join(roomCode);
+    socket.data.roomCode = roomCode;
+    socket.data.playerName = playerName;
+
+    const { room, player } = result;
+
+    // Notify everyone that player reconnected
+    io.to(roomCode).emit('player-reconnected', {
+      playerName: player.name,
+      players: room.players.map(p => ({
+        name: p.name,
+        connected: p.connected,
+        alive: p.alive
+      }))
+    });
+
+    // Send full game state to the reconnecting player
+    const state = {
+      success: true,
+      gameState: null
+    };
+
+    if (room.gameState) {
+      const roleInfo = gameLogic.getRoleInfo(player.role);
+      state.gameState = {
+        phase: room.gameState.phase,
+        round: room.gameState.round,
+        nightSubPhase: room.gameState.nightSubPhase,
+        role: player.role,
+        team: roleInfo.team,
+        emoji: roleInfo.emoji,
+        alive: player.alive,
+        players: room.players.map(p => ({
+          name: p.name,
+          alive: p.alive,
+          connected: p.connected
+        }))
+      };
+
+      // If werewolf, send teammates
+      if (player.role === 'werewolf') {
+        state.gameState.werewolfTeammates = room.players
+          .filter(p => p.role === 'werewolf' && p.name !== player.name)
+          .map(p => p.name);
+      }
+    } else {
+      // Still in lobby
+      state.lobbyInfo = {
+        players: room.players.map(p => ({
+          name: p.name,
+          connected: p.connected
+        })),
+        roleConfig: room.settings.roles
+      };
+    }
+
+    callback(state);
+  });
+
+  // ===== REJOIN: Moderator reconnection =====
+
+  socket.on('rejoin-moderator', (payload, callback) => {
+    const v = validate(schemas.rejoinModerator, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode } = v.data;
+
+    const room = gameManager.reconnectModerator(roomCode, socket.id);
+    if (!room) {
+      return callback({ success: false, error: 'Cannot rejoin — room not found or already has moderator' });
+    }
+
+    socket.join(roomCode);
+    socket.data.roomCode = roomCode;
+    socket.data.isModerator = true;
+
+    // Send full room state to moderator
+    const state = {
+      success: true,
+      gameState: null
+    };
+
+    if (room.gameState) {
+      state.gameState = {
+        phase: room.gameState.phase,
+        round: room.gameState.round,
+        nightSubPhase: room.gameState.nightSubPhase,
+        players: room.players.map(p => ({
+          name: p.name,
+          role: p.role,
+          alive: p.alive,
+          connected: p.connected,
+          team: gameLogic.getRoleInfo(p.role).team,
+          emoji: gameLogic.getRoleInfo(p.role).emoji
+        }))
+      };
+    } else {
+      state.lobbyInfo = {
+        players: room.players.map(p => ({
+          name: p.name,
+          connected: p.connected
+        })),
+        roleConfig: room.settings.roles
+      };
+    }
+
+    // Notify players that moderator is back
+    socket.to(roomCode).emit('moderator-reconnected');
+
+    callback(state);
+  });
+
   // ===== LOBBY: ROLE CONFIG BROADCAST =====
 
-  socket.on('update-role-config', ({ roomCode, roleConfig }) => {
+  socket.on('update-role-config', (payload) => {
+    const v = validate(schemas.updateRoleConfig, payload);
+    if (!v.success) return;
+    const { roomCode, roleConfig } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room) return;
     if (room.moderatorId !== socket.id) return;
 
     room.settings.roles = roleConfig;
+    gameManager.syncRoom(roomCode);
 
     // Broadcast to all players in room
     socket.to(roomCode).emit('role-config-updated', { roleConfig });
   });
 
   // Request lobby info (fixes race condition when PlayerView mounts after join)
-  socket.on('request-lobby-info', ({ roomCode }) => {
+  socket.on('request-lobby-info', (payload) => {
+    const v = validate(schemas.requestLobbyInfo, payload);
+    if (!v.success) return;
+    const { roomCode } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room) return;
 
@@ -210,7 +368,11 @@ io.on('connection', (socket) => {
 
   // ===== GAME START =====
 
-  socket.on('start-game', ({ roomCode, roleConfig }, callback) => {
+  socket.on('start-game', (payload, callback) => {
+    const v = validate(schemas.startGame, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode, roleConfig } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room) return callback({ success: false, error: 'Room not found' });
     if (room.moderatorId !== socket.id) return callback({ success: false, error: 'Not the moderator' });
@@ -222,6 +384,7 @@ io.on('connection', (socket) => {
 
     // Create game state
     room.gameState = gameLogic.createGameState(roleConfig);
+    gameManager.syncRoom(roomCode);
 
     // Send each player their role privately
     room.players.forEach(player => {
@@ -267,7 +430,11 @@ io.on('connection', (socket) => {
 
   // ===== START NIGHT (Moderator only) =====
 
-  socket.on('start-night', ({ roomCode }, callback) => {
+  socket.on('start-night', (payload, callback) => {
+    const v = validate(schemas.startNight, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room || !room.gameState) return callback({ success: false, error: 'No active game' });
     if (room.moderatorId !== socket.id) return callback({ success: false, error: 'Not the moderator' });
@@ -279,6 +446,7 @@ io.on('connection', (socket) => {
       seerCheck: null,
       bodyguardProtect: null
     };
+    gameManager.syncRoom(roomCode);
 
     io.to(roomCode).emit('night-started', {
       phase: 'night',
@@ -291,7 +459,11 @@ io.on('connection', (socket) => {
 
   // ===== NIGHT ACTIONS =====
 
-  socket.on('night-action', ({ roomCode, action, target }, callback) => {
+  socket.on('night-action', (payload, callback) => {
+    const v = validate(schemas.nightAction, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode, action, target } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room || !room.gameState) return callback({ success: false, error: 'No active game' });
     if (room.gameState.phase !== 'night') return callback({ success: false, error: 'Not night phase' });
@@ -377,12 +549,17 @@ io.on('connection', (socket) => {
       }
     }
 
+    gameManager.syncRoom(roomCode);
     callback({ success: true });
   });
 
   // ===== RESOLVE NIGHT (Moderator only) =====
 
-  socket.on('resolve-night', ({ roomCode }, callback) => {
+  socket.on('resolve-night', (payload, callback) => {
+    const v = validate(schemas.resolveNight, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room || !room.gameState) return callback({ success: false, error: 'No active game' });
     if (room.moderatorId !== socket.id) return callback({ success: false, error: 'Not the moderator' });
@@ -394,6 +571,8 @@ io.on('connection', (socket) => {
 
     if (winCheck.gameOver) {
       room.gameState.phase = 'finished';
+      gameManager.syncRoom(roomCode);
+
       io.to(roomCode).emit('game-over', {
         winner: winCheck.winner,
         reason: winCheck.reason,
@@ -416,6 +595,7 @@ io.on('connection', (socket) => {
 
     // Move to day phase
     room.gameState.phase = 'day';
+    gameManager.syncRoom(roomCode);
 
     io.to(roomCode).emit('night-result', {
       killed: result.killed,
@@ -438,7 +618,11 @@ io.on('connection', (socket) => {
 
   // ===== DAY VOTE =====
 
-  socket.on('day-vote', ({ roomCode, target }, callback) => {
+  socket.on('day-vote', (payload, callback) => {
+    const v = validate(schemas.dayVote, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode, target } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room || !room.gameState) return callback({ success: false, error: 'No active game' });
     if (room.gameState.phase !== 'day') return callback({ success: false, error: 'Not day phase' });
@@ -447,6 +631,7 @@ io.on('connection', (socket) => {
     if (!player || !player.alive) return callback({ success: false, error: 'Invalid player' });
 
     room.gameState.dayVotes[player.name] = target;
+    gameManager.syncRoom(roomCode);
 
     io.to(room.moderatorId).emit('day-vote-received', {
       voter: player.name,
@@ -469,7 +654,11 @@ io.on('connection', (socket) => {
 
   // ===== RESOLVE DAY (Moderator only) =====
 
-  socket.on('resolve-day', ({ roomCode }, callback) => {
+  socket.on('resolve-day', (payload, callback) => {
+    const v = validate(schemas.resolveDay, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room || !room.gameState) return callback({ success: false, error: 'No active game' });
     if (room.moderatorId !== socket.id) return callback({ success: false, error: 'Not the moderator' });
@@ -480,6 +669,8 @@ io.on('connection', (socket) => {
 
     if (winCheck.gameOver) {
       room.gameState.phase = 'finished';
+      gameManager.syncRoom(roomCode);
+
       io.to(roomCode).emit('game-over', {
         winner: winCheck.winner,
         reason: winCheck.reason,
@@ -508,6 +699,7 @@ io.on('connection', (socket) => {
       seerCheck: null,
       bodyguardProtect: null
     };
+    gameManager.syncRoom(roomCode);
 
     io.to(roomCode).emit('day-result', {
       eliminated: result.eliminated,
@@ -528,7 +720,11 @@ io.on('connection', (socket) => {
 
   // ===== PLAY AGAIN (Moderator only) — reset room, stay in lobby =====
 
-  socket.on('play-again', ({ roomCode }, callback) => {
+  socket.on('play-again', (payload, callback) => {
+    const v = validate(schemas.playAgain, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room) return callback({ success: false, error: 'Room not found' });
     if (room.moderatorId !== socket.id) return callback({ success: false, error: 'Not the moderator' });
@@ -539,6 +735,7 @@ io.on('connection', (socket) => {
       p.role = null;
       p.alive = true;
     });
+    gameManager.syncRoom(roomCode);
 
     io.to(roomCode).emit('game-reset', {
       players: room.players.map(p => ({
@@ -553,18 +750,19 @@ io.on('connection', (socket) => {
 
   // ===== END GAME (Moderator only) — close room, go home =====
 
-  socket.on('end-game', ({ roomCode }, callback) => {
+  socket.on('end-game', (payload, callback) => {
+    const v = validate(schemas.endGame, payload);
+    if (!v.success) return callback({ success: false, error: v.error });
+    const { roomCode } = v.data;
+
     const room = gameManager.getRoom(roomCode);
     if (!room) return callback({ success: false, error: 'Room not found' });
     if (room.moderatorId !== socket.id) return callback({ success: false, error: 'Not the moderator' });
 
     io.to(roomCode).emit('game-ended');
 
-    room.gameState = null;
-    room.players.forEach(p => {
-      p.role = null;
-      p.alive = true;
-    });
+    // Delete room from memory and MongoDB
+    gameManager.deleteRoom(roomCode);
 
     callback({ success: true });
   });
@@ -577,7 +775,11 @@ io.on('connection', (socket) => {
     if (!result) return;
 
     if (result.type === 'moderator') {
-      io.to(result.roomCode).emit('room-closed', { reason: 'Moderator disconnected' });
+      // Don't close the room — moderator can reconnect
+      // Notify players that moderator disconnected (but room is preserved)
+      io.to(result.roomCode).emit('moderator-disconnected', {
+        reason: 'Moderator disconnected — waiting for reconnection'
+      });
     } else if (result.type === 'player-leave') {
       io.to(result.roomCode).emit('player-left', {
         playerName: result.player.name,
@@ -599,7 +801,19 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`Werewolf server running on port ${PORT}`);
-});
+// ===== SERVER STARTUP =====
+
+async function startServer() {
+  // Connect to MongoDB (optional — game works without it, just no persistence)
+  await connectDB();
+
+  // Restore rooms from MongoDB if any exist
+  await gameManager.restoreRooms();
+
+  const PORT = process.env.PORT || 3001;
+  server.listen(PORT, () => {
+    console.log(`Werewolf server running on port ${PORT}`);
+  });
+}
+
+startServer();

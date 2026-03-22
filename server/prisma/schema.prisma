@@ -1,15 +1,14 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 model Role {
-  id             Int          @id @default(autoincrement())
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
   name           String       @unique
   team           String       // "werewolf" | "village"
   description    String?
@@ -19,18 +18,33 @@ model Role {
 }
 
 model Player {
-  id           Int          @id @default(autoincrement())
-  username     String       @unique
-  passwordHash String
-  createdAt    DateTime     @default(now())
-  gamePlayers  GamePlayer[]
+  id            String              @id @default(auto()) @map("_id") @db.ObjectId
+  username      String              @unique
+  passwordHash  String?
+  googleId      String?             @unique
+  matchesPlayed Int                 @default(0)
+  matchesWon    Int                 @default(0)
+  createdAt     DateTime            @default(now())
+  achievements  PlayerAchievement[]
+  gamePlayers   GamePlayer[]
+}
+
+model PlayerAchievement {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  playerId    String   @db.ObjectId
+  player      Player   @relation(fields: [playerId], references: [id])
+  title       String
+  description String?
+  unlockedAt  DateTime @default(now())
+
+  @@unique([playerId, title])
 }
 
 model Game {
-  id          Int          @id @default(autoincrement())
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
   roomCode    String
   status      String       // "lobby" | "playing" | "finished"
-  winnerTeam  String?
+  winnerTeam  String?      // "werewolf" | "village" | null
   playerCount Int
   rounds      Int          @default(0)
   startedAt   DateTime?
@@ -41,28 +55,29 @@ model Game {
 }
 
 model GamePlayer {
-  id         Int     @id @default(autoincrement())
+  id         String  @id @default(auto()) @map("_id") @db.ObjectId
   game       Game    @relation(fields: [gameId], references: [id])
-  gameId     Int
+  gameId     String  @db.ObjectId
   player     Player  @relation(fields: [playerId], references: [id])
-  playerId   Int
+  playerId   String  @db.ObjectId
   role       Role    @relation(fields: [roleId], references: [id])
-  roleId     Int
+  roleId     String  @db.ObjectId
   isAlive    Boolean @default(true)
   deathRound Int?
-  deathCause String?
+  deathCause String? // "werewolf" | "voted" | null
   isWinner   Boolean @default(false)
 }
 
 model GameEvent {
-  id         Int      @id @default(autoincrement())
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
   game       Game     @relation(fields: [gameId], references: [id])
-  gameId     Int
+  gameId     String   @db.ObjectId
   round      Int
   phase      String   // "night" | "day"
   actorName  String?
   targetName String?
   action     String   // "kill" | "check" | "save" | "protect" | "vote"
+  subAction  String?  // e.g. witch poison/heal
   result     String?
   createdAt  DateTime @default(now())
 }

@@ -46,8 +46,45 @@ export default function ModeratorView() {
     villager: 3
   });
   const [lobbyError, setLobbyError] = useState('');
+  const [connectionLost, setConnectionLost] = useState(false);
 
   useEffect(() => {
+    // Auto-rejoin on socket reconnect (server restart or network drop)
+    const handleReconnect = () => {
+      console.log('Moderator socket reconnected — attempting rejoin...');
+      socket.emit('rejoin-moderator', { roomCode }, (response) => {
+        if (response.success) {
+          console.log('Moderator rejoin successful');
+          setConnectionLost(false);
+
+          if (response.gameState) {
+            const gs = response.gameState;
+            setGamePhase(gs.phase);
+            setRound(gs.round);
+            setNightSubPhase(gs.nightSubPhase);
+            setPlayers(gs.players.map(p => ({ name: p.name, alive: p.alive, connected: p.connected })));
+            setAllRoles(gs.players);
+          } else if (response.lobbyInfo) {
+            setGamePhase('lobby');
+            setLobbyPlayers(response.lobbyInfo.players);
+            if (response.lobbyInfo.roleConfig && Object.keys(response.lobbyInfo.roleConfig).length > 0) {
+              setRoleConfig(response.lobbyInfo.roleConfig);
+            }
+          }
+        } else {
+          console.log('Moderator rejoin failed:', response.error);
+          navigate('/');
+        }
+      });
+    };
+
+    const handleDisconnect = () => {
+      setConnectionLost(true);
+    };
+
+    socket.on('connect', handleReconnect);
+    socket.on('disconnect', handleDisconnect);
+
     socket.on('game-started', (data) => {
       setGamePhase(data.phase);
       setRound(data.round);
@@ -114,7 +151,17 @@ export default function ModeratorView() {
       setLobbyPlayers(updatedPlayers);
     });
 
+    socket.on('player-reconnected', ({ players: updatedPlayers }) => {
+      setPlayers(prev => prev.map(p => {
+        const updated = updatedPlayers.find(u => u.name === p.name);
+        return updated ? { ...p, connected: updated.connected, alive: updated.alive } : p;
+      }));
+      setLobbyPlayers(updatedPlayers);
+    });
+
     return () => {
+      socket.off('connect', handleReconnect);
+      socket.off('disconnect', handleDisconnect);
       socket.off('game-started');
       socket.off('all-roles');
       socket.off('night-started');
@@ -128,8 +175,9 @@ export default function ModeratorView() {
       socket.off('player-disconnected');
       socket.off('player-joined');
       socket.off('player-left');
+      socket.off('player-reconnected');
     };
-  }, []);
+  }, [roomCode, navigate]);
 
   const startNight = () => {
     socket.emit('start-night', { roomCode }, (response) => {
@@ -286,6 +334,13 @@ export default function ModeratorView() {
       <button className="lang-toggle" onClick={toggleLang}>
         {lang === 'th' ? 'EN' : 'TH'}
       </button>
+
+      {/* Connection Lost Banner */}
+      {connectionLost && (
+        <div className="connection-lost-banner">
+          ⚡ {lang === 'th' ? 'ขาดการเชื่อมต่อ... กำลังเชื่อมต่อใหม่' : 'Connection lost... Reconnecting'}
+        </div>
+      )}
 
       {/* Header */}
       <div className="mod-header">

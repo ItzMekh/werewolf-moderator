@@ -1477,6 +1477,27 @@ body::before {
   }
 }
 
+/* ===== CONNECTION LOST BANNER ===== */
+.connection-lost-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  animation: pulse-banner 2s ease-in-out infinite;
+}
+
+@keyframes pulse-banner {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 @media (min-width: 768px) {
   .page {
     padding: 40px 20px;
