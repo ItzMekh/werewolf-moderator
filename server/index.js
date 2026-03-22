@@ -42,43 +42,58 @@ app.get('/', (req, res) => {
 // ===== AUTH API =====
 
 app.post('/api/register', async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-  if (username.length < 2 || username.length > 20) return res.status(400).json({ error: 'Username must be 2-20 characters' });
-  if (password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    if (username.length < 2 || username.length > 20) return res.status(400).json({ error: 'Username must be 2-20 characters' });
+    if (password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
 
-  const result = await auth.register(username, password);
-  if (result.error) return res.status(409).json({ error: result.error });
-  res.json(result);
+    const result = await auth.register(username, password);
+    if (result.error) return res.status(409).json({ error: result.error });
+    res.json(result);
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'Registration failed' });
+  }
 });
 
 app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
-  const result = await auth.login(username, password);
-  if (result.error) return res.status(401).json({ error: result.error });
-  res.json(result);
+    const result = await auth.login(username, password);
+    if (result.error) return res.status(401).json({ error: result.error });
+    res.json(result);
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Login failed' });
+  }
 });
 
 app.get('/api/me/stats', async (req, res) => {
-  const header = req.headers.authorization;
-  if (!header) return res.status(401).json({ error: 'No token' });
+  try {
+    const header = req.headers.authorization;
+    if (!header) return res.status(401).json({ error: 'No token' });
 
-  const token = header.replace('Bearer ', '');
-  const user = auth.verifyToken(token);
-  if (!user) return res.status(401).json({ error: 'Invalid token' });
+    const token = header.replace('Bearer ', '');
+    const user = auth.verifyToken(token);
+    if (!user) return res.status(401).json({ error: 'Invalid token' });
 
-  const stats = await auth.getPlayerStats(user.id);
-  res.json({ username: user.username, ...stats });
+    const stats = await auth.getPlayerStats(user.id);
+    res.json({ username: user.username, ...stats });
+  } catch (err) {
+    console.error('Stats error:', err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
 });
 
 // Google Login
 app.post('/api/google-login', async (req, res) => {
-  const { credential } = req.body;
-  if (!credential) return res.status(400).json({ error: 'No credential provided' });
-
   try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'No credential provided' });
+
     const result = await auth.googleLogin(credential);
     if (result.error) return res.status(401).json({ error: result.error });
     res.json(result);
@@ -89,16 +104,21 @@ app.post('/api/google-login', async (req, res) => {
 });
 
 app.get('/api/players/:username/stats', async (req, res) => {
-  const db = auth.getPrisma();
-  if (!db) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const db = auth.getPrisma();
+    if (!db) return res.status(503).json({ error: 'Database unavailable' });
 
-  const player = await db.player.findUnique({
-    where: { username: req.params.username }
-  });
-  if (!player) return res.status(404).json({ error: 'Player not found' });
+    const player = await db.player.findUnique({
+      where: { username: req.params.username }
+    });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
 
-  const stats = await auth.getPlayerStats(player.id);
-  res.json({ username: player.username, ...stats });
+    const stats = await auth.getPlayerStats(player.id);
+    res.json({ username: player.username, ...stats });
+  } catch (err) {
+    console.error('Player stats error:', err);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
 });
 
 // ===== SOCKET.IO =====
