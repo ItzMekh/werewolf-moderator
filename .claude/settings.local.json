@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(ls \"c:/Users/Mekh/Desktop/Project/\\(web app\\)werewolf-moderator/server/node_modules/.package-lock.json\")",
+      "Bash(ls \"c:/Users/Mekh/Desktop/Project/\\(web app\\)werewolf-moderator/client/node_modules/.package-lock.json\")",
+      "Bash(npx prisma:*)",
+      "Bash(node -e \":*)",
+      "Bash(npx vite:*)",
+      "Bash(timeout 5 node index.js)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" repo create werewolf-moderator --public --source=. --remote=origin --push)",
+      "Bash(vercel login:*)",
+      "Bash(vercel --yes --prod)",
+      "Bash(railway login:*)",
+      "Bash(railway whoami:*)",
+      "Bash(railway version:*)"
+    ]
+  }
+}

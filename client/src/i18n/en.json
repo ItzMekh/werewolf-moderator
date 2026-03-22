@@ -19,7 +19,8 @@
     "passwordPlaceholder": "Enter password",
     "hasAccount": "Already have an account? Login",
     "noAccount": "Don't have an account? Register",
-    "loginHint": "Login to save your game stats"
+    "loginHint": "Login to save your game stats",
+    "or": "or"
   },
   "stats": {
     "overview": "Overview",

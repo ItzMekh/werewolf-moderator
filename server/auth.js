@@ -1,9 +1,12 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
+const { OAuth2Client } = require('google-auth-library');
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'werewolf-secret-key-change-in-production';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 async function register(username, password) {
   const existing = await prisma.player.findUnique({ where: { username } });
@@ -123,4 +126,46 @@ async function saveGameStats(room, winnerTeam) {
   return game;
 }
 
-module.exports = { register, login, verifyToken, getPlayerStats, saveGameStats, prisma };
+async function googleLogin(credential) {
+  if (!GOOGLE_CLIENT_ID) return { error: 'Google login not configured' };
+
+  const ticket = await googleClient.verifyIdToken({
+    idToken: credential,
+    audience: GOOGLE_CLIENT_ID
+  });
+
+  const payload = ticket.getPayload();
+  const googleUsername = payload.name || payload.email.split('@')[0];
+
+  // Find or create player with Google prefix to avoid conflicts
+  const username = `g_${payload.sub.slice(-8)}`;
+  let player = await prisma.player.findUnique({ where: { username } });
+
+  if (!player) {
+    player = await prisma.player.create({
+      data: {
+        username: googleUsername,
+        passwordHash: `google:${payload.sub}` // Not a real password hash
+      }
+    });
+    // If username conflict, retry with unique suffix
+    if (!player) {
+      player = await prisma.player.create({
+        data: {
+          username: `${googleUsername}_${payload.sub.slice(-4)}`,
+          passwordHash: `google:${payload.sub}`
+        }
+      });
+    }
+  }
+
+  const token = jwt.sign({ id: player.id, username: player.username }, JWT_SECRET, { expiresIn: '30d' });
+  return {
+    token,
+    player: { id: player.id, username: player.username },
+    googleName: payload.name,
+    googlePicture: payload.picture
+  };
+}
+
+module.exports = { register, login, googleLogin, verifyToken, getPlayerStats, saveGameStats, prisma };

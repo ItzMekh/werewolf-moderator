@@ -9,14 +9,29 @@ const auth = require('./auth');
 const app = express();
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || '*',
-    methods: ['GET', 'POST']
-  }
-});
+// CORS: allow Vercel frontend + localhost dev
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:3000'
+].filter(Boolean);
 
-app.use(cors());
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for now (game app, not sensitive)
+    }
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: true
+};
+
+const io = new Server(server, { cors: corsOptions });
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check
@@ -56,6 +71,21 @@ app.get('/api/me/stats', async (req, res) => {
 
   const stats = await auth.getPlayerStats(user.id);
   res.json({ username: user.username, ...stats });
+});
+
+// Google Login
+app.post('/api/google-login', async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) return res.status(400).json({ error: 'No credential provided' });
+
+  try {
+    const result = await auth.googleLogin(credential);
+    if (result.error) return res.status(401).json({ error: result.error });
+    res.json(result);
+  } catch (err) {
+    console.error('Google login error:', err);
+    res.status(500).json({ error: 'Google login failed' });
+  }
 });
 
 app.get('/api/players/:username/stats', async (req, res) => {

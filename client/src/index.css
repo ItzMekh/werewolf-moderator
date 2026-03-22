@@ -1071,6 +1071,33 @@ body::before {
   margin-top: 24px;
 }
 
+/* ===== GOOGLE LOGIN ===== */
+.google-login-wrapper {
+  margin-bottom: 16px;
+}
+
+#google-signin-btn {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-glass);
+}
+
 /* ===== LOGIN PAGE ===== */
 .btn-switch-auth {
   display: block;
