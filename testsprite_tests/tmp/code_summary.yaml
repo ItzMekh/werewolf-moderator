@@ -1,0 +1,163 @@
+version: "2"
+type: frontend
+tech_stack:
+  - language: JavaScript (JSX)
+  - framework: React 18 + Vite
+  - ui_library: Vanilla CSS (custom dark glassmorphism theme)
+  - other: React Router v6, Socket.io-client, i18n (Thai/English)
+routes:
+  - path: /
+    file: src/pages/Home.jsx
+    auth_required: false
+    description: Home page with Create Room and Join Room buttons and optional auth bar
+  - path: /create
+    file: src/pages/CreateRoom.jsx
+    auth_required: false
+    description: Moderator creates a game room, configures roles, waits for players, starts game
+  - path: /join
+    file: src/pages/JoinRoom.jsx
+    auth_required: false
+    description: Player enters room code and name to join a game room
+  - path: /moderator/:roomCode
+    file: src/pages/ModeratorView.jsx
+    auth_required: false
+    description: Moderator dashboard showing all player roles and game phase controls
+  - path: /play/:roomCode
+    file: src/pages/PlayerView.jsx
+    auth_required: false
+    description: Player interface for role peek, night actions, and day voting
+  - path: /login
+    file: src/pages/Login.jsx
+    auth_required: false
+    description: Login or register with username/password or Google OAuth
+  - path: /profile
+    file: src/pages/Profile.jsx
+    auth_required: true
+    description: Authenticated user stats and per-role win/loss breakdown
+features:
+  - name: Home Navigation
+    description: Landing page with buttons to create or join a game room, and login/profile access
+    files:
+      - src/pages/Home.jsx
+    entry_route: /
+    user_interactions:
+      - Click Create Room button to go to /create
+      - Click Join Room button to go to /join
+      - Click Login button (if not logged in) to go to /login
+      - Click username button (if logged in) to go to /profile
+      - Toggle language between Thai and English
+    api_calls: []
+    auth_required: false
+  - name: User Login and Registration
+    description: Login or register with username/password credentials or Google OAuth
+    files:
+      - src/pages/Login.jsx
+    entry_route: /login
+    user_interactions:
+      - Fill username input field
+      - Fill password input field
+      - Click Login button to submit credentials
+      - Click toggle to switch to Register mode
+      - Click Register button to create a new account
+      - Click Google Sign-In button for OAuth login
+      - See error message on invalid credentials
+      - Click back button to return to home
+      - Toggle language between Thai and English
+    api_calls:
+      - method: POST
+        endpoint: /api/login
+      - method: POST
+        endpoint: /api/register
+      - method: POST
+        endpoint: /api/google-login
+    auth_required: false
+  - name: Create Room (Lobby)
+    description: Moderator creates a room, configures role counts, waits for players to join, and starts the game
+    files:
+      - src/pages/CreateRoom.jsx
+    entry_route: /create
+    user_interactions:
+      - See auto-generated room code displayed on screen
+      - Click copy button to copy room code to clipboard
+      - See list of players as they join
+      - Adjust role counts (Werewolf, Seer, Bodyguard, Villager) using +/- buttons
+      - See total role count vs player count
+      - Click Start Game button (enabled only when role count matches player count and at least 4 players)
+      - See error message if conditions are not met
+      - Click back button to return to home
+      - Toggle language between Thai and English
+    api_calls: []
+    auth_required: false
+  - name: Join Room
+    description: Player enters a 4-digit room code and their name to join a game
+    files:
+      - src/pages/JoinRoom.jsx
+    entry_route: /join
+    user_interactions:
+      - Enter 4-digit room code in numeric input field
+      - Enter player name (up to 20 characters)
+      - Click Join button to join the room
+      - See error message if room not found or already started
+      - Toggle language between Thai and English
+      - Click back button to return to home
+    api_calls: []
+    auth_required: false
+  - name: Moderator Dashboard
+    description: Moderator controls game phases, sees all player roles, and manages night/day resolution
+    files:
+      - src/pages/ModeratorView.jsx
+    entry_route: /moderator/:roomCode
+    user_interactions:
+      - See all players with their assigned roles
+      - Click Start Night button to begin night phase
+      - See night sub-phase progression (werewolf, bodyguard, seer)
+      - Click Resolve Night button to apply night actions
+      - See night result announcement
+      - Click Start Day button to begin day voting
+      - See day vote results
+      - Click Resolve Day button to eliminate voted player
+      - See game over screen when win condition is met
+      - Click Play Again to restart the game
+      - Click End Game to close the room
+    api_calls: []
+    auth_required: false
+  - name: Player View
+    description: Player interface showing role (hold to reveal), night actions, and day voting
+    files:
+      - src/pages/PlayerView.jsx
+    entry_route: /play/:roomCode
+    user_interactions:
+      - Press and hold role card to reveal assigned role
+      - See night action prompt based on role (werewolf vote, seer investigate, bodyguard protect)
+      - Submit night action target selection
+      - See seer investigation result
+      - Participate in day vote by selecting a player to eliminate
+      - See game result (win/lose) at end of game
+      - See eliminated/alive status
+    api_calls: []
+    auth_required: false
+  - name: User Profile and Stats
+    description: Authenticated user views overall game stats and per-role win/loss breakdown
+    files:
+      - src/pages/Profile.jsx
+    entry_route: /profile
+    user_interactions:
+      - See total games played, wins, losses, and win rate
+      - See per-role stats (games played, wins, losses, win bar)
+      - Click Logout button to sign out
+      - Click back button to return to home
+      - Toggle language between Thai and English
+    api_calls:
+      - method: GET
+        endpoint: /api/me/stats
+    auth_required: true
+known_limitations:
+  - issue: Player and Moderator views rely entirely on WebSocket (Socket.io) events, not REST API calls — tests requiring direct HTTP interaction with game state will not work
+    location: src/pages/ModeratorView.jsx, src/pages/PlayerView.jsx
+    impact: Game phase transitions and night/day actions cannot be tested via HTTP; requires WebSocket simulation
+  - issue: Role reveal uses press-and-hold interaction which may not be easily testable with standard click events
+    location: src/pages/PlayerView.jsx
+    impact: Role reveal testing may need long-press simulation
+  - issue: Google OAuth login requires external GOOGLE_CLIENT_ID env variable and may not be available in test environment
+    location: src/pages/Login.jsx
+    impact: Google Sign-In button may not render or function during automated testing

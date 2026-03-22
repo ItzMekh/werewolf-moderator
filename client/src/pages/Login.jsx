@@ -107,7 +107,7 @@ export default function Login() {
 
   return (
     <div className="page login-page">
-      <button className="lang-toggle" onClick={toggleLang}>
+      <button className="lang-toggle" onClick={toggleLang} aria-label="Toggle language">
         {lang === 'th' ? 'EN' : 'TH'}
       </button>
 

@@ -51,7 +51,7 @@ export default function Profile() {
     localStorage.removeItem('werewolf-token');
     localStorage.removeItem('werewolf-user');
     reconnectSocket();
-    navigate('/');
+    navigate('/login');
   };
 
   if (!user) return null;

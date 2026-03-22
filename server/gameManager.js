@@ -111,7 +111,7 @@ function joinRoom(code, playerName, socketId) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
   if (room.gameState && room.gameState.phase !== 'lobby') {
-    return { error: 'Game already in progress' };
+    return { error: 'Game already started' };
   }
   const existing = room.players.find(p => p.name === playerName);
   if (existing) return { error: 'Name already taken' };

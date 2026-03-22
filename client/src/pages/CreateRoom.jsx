@@ -26,7 +26,12 @@ export default function CreateRoom() {
 
   useEffect(() => {
     // Create room on mount
+    const timeout = setTimeout(() => {
+      setError(t('create.connectionError') || 'Cannot connect to server. Please go back and try again.');
+    }, 10000);
+
     socket.emit('create-room', (response) => {
+      clearTimeout(timeout);
       if (response.success) {
         setRoomCode(response.roomCode);
         // Send initial role config so players joining immediately see it

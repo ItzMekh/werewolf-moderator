@@ -13,15 +13,24 @@ export default function JoinRoom() {
 
   const handleJoin = (e) => {
     e.preventDefault();
-    if (!roomCode.trim() || !playerName.trim()) return;
+    if (!roomCode.trim() || !playerName.trim()) {
+      setError(lang === 'th' ? 'กรุณากรอกข้อมูลให้ครบ' : 'Please fill in all fields');
+      return;
+    }
 
     setJoining(true);
     setError('');
+
+    const timeout = setTimeout(() => {
+      setJoining(false);
+      setError(lang === 'th' ? 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้' : 'Cannot connect to server. Please try again.');
+    }, 10000);
 
     socket.emit('join-room', {
       roomCode: roomCode.trim(),
       playerName: playerName.trim()
     }, (response) => {
+      clearTimeout(timeout);
       setJoining(false);
       if (response.success) {
         // Store player name for later use

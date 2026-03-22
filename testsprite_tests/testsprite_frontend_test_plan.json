@@ -1,0 +1,1154 @@
+[
+  {
+    "id": "TC001",
+    "title": "Navigate from Home to Create Room page",
+    "description": "Verifies the Create Room button on the Home page routes to the Create Room page.",
+    "category": "Home Navigation",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Create Room\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Create Room\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/create\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Create\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Navigate from Home to Join Room page",
+    "description": "Verifies the Join Room button on the Home page routes to the Join Room page.",
+    "category": "Home Navigation",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Join Room\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Join Room\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/join\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Room Code\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Toggle language on Home updates visible UI text",
+    "description": "Verifies that toggling the language on the Home page updates visible UI language.",
+    "category": "Home Navigation",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Create Room\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Toggle language between Thai and English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Create Room\" is not visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"สร้างห้อง\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Language toggle persists when navigating to Join Room",
+    "description": "Verifies the selected language remains applied after navigating from Home to Join Room.",
+    "category": "Home Navigation",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Toggle language between Thai and English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"สร้างห้อง\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Join Room\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/join\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"รหัสห้อง\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Home shows Create and Join actions on initial load",
+    "description": "Verifies the Home page loads and shows primary navigation actions without requiring authentication.",
+    "category": "Home Navigation",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify page title contains \"Werewolf\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Create Room\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Join Room\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Login with valid username/password shows logged-in state in header",
+    "description": "Verifies a user can log in with correct credentials and sees the username button in the header.",
+    "category": "User Login and Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"{{LOGIN_USER}}\" into the username input field"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"{{LOGIN_PASSWORD}}\" into the password input field"
+      },
+      {
+        "type": "action",
+        "description": "Click Login button to submit credentials"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"username button\" is visible in the header"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"{{LOGIN_USER}}\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Login with invalid username/password shows an error message",
+    "description": "Verifies the login form shows a visible error message when credentials are invalid.",
+    "category": "User Login and Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"nonexistent_user_12345\" into the username input field"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"wrong_password_!@#\" into the password input field"
+      },
+      {
+        "type": "action",
+        "description": "Click Login button to submit credentials"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"error message\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"invalid\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Register a new account with username/password shows logged-in state",
+    "description": "Verifies a new user can switch to Register mode, register successfully, and see the username button in the header.",
+    "category": "User Login and Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click toggle to switch to Register mode"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"new_user_test_2026_03_22\" into the username input field"
+      },
+      {
+        "type": "action",
+        "description": "Fill \"P@ssw0rd_Test_2026\" into the password input field"
+      },
+      {
+        "type": "action",
+        "description": "Click Register button to create a new account"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"username button\" is visible in the header"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Toggle language between Thai and English updates the login page text",
+    "description": "Verifies the language toggle changes visible UI text on the login page.",
+    "category": "User Login and Registration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Toggle language between Thai and English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Login\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Toggle language between Thai and English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"เข้าสู่ระบบ\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Back button returns from Login page to Home page",
+    "description": "Verifies the back button on the login page returns the user to the Home page.",
+    "category": "User Login and Registration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click back button to return to home"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Create Room\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Join Room\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Register mode can be opened and shows Register button",
+    "description": "Verifies switching to Register mode changes the primary submit button to Register.",
+    "category": "User Login and Registration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click toggle to switch to Register mode"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Register button\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Register\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Login mode is available and shows Login button",
+    "description": "Verifies the login page shows Login mode with a visible Login button by default.",
+    "category": "User Login and Registration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Login button\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Login\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"username input field\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"password input field\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Create room lobby shows an auto-generated room code",
+    "description": "Verifies that the Create Room lobby loads and displays a room code for sharing.",
+    "category": "Create Room (Lobby)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Room Code\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"room code value\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Copy\" button is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Role controls and total role count display are visible",
+    "description": "Verifies that role +/- controls and the total role count vs player count indicator are present in the lobby UI.",
+    "category": "Create Room (Lobby)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Werewolf\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Seer\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Bodyguard\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Villager\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Total\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Start Game\" button is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Start Game is blocked when requirements are not met (role count mismatch / insufficient players)",
+    "description": "Verifies that attempting to start the game without meeting conditions results in a visible error message (or clearly blocked start).",
+    "category": "Create Room (Lobby)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "action",
+        "description": "Adjust role counts using the +/- buttons so the total role count is clearly different from the player count shown"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Start Game\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"disabled\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Back button returns to Home from Create Room",
+    "description": "Verifies that the user can leave the lobby and return to the Home page using the back button in the UI.",
+    "category": "Create Room (Lobby)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Back\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Create Room\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Join Room\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Language toggle switches lobby UI language",
+    "description": "Verifies that toggling language changes visible UI text in the Create Room lobby.",
+    "category": "Create Room (Lobby)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "action",
+        "description": "Toggle language between Thai and English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Room Code\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Toggle language between Thai and English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Room Code\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Join Room page loads and accepts valid-looking room code and player name",
+    "description": "Verifies the Join Room screen allows entering a 4-digit code and a player name, and the Join action is available.",
+    "category": "Join Room",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Join\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"1234\" into the room code input field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"PlayerOne\" into the player name input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the Join button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify either an error message is visible or the URL contains \"/play/\""
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Room not found shows an error message",
+    "description": "Verifies an invalid/non-existent room code shows a room-not-found error after attempting to join.",
+    "category": "Join Room",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "action",
+        "description": "Type \"0000\" into the room code input field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"NoRoomUser\" into the player name input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the Join button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"room\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"not\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Joining blocked after game started shows an error message",
+    "description": "Verifies the UI displays an error when trying to join a room where the game has already started and joining is blocked.",
+    "category": "Join Room",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "action",
+        "description": "Type \"9999\" into the room code input field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"LateJoiner\" into the player name input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the Join button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"started\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "Back button returns to Home page",
+    "description": "Verifies the Back action from Join Room returns the user to the Home page route.",
+    "category": "Join Room",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "action",
+        "description": "Click the back button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Create Room\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Join Room\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "Room code input rejects non-numeric characters",
+    "description": "Verifies the room code field behaves like a numeric input and does not accept letters.",
+    "category": "Join Room",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "action",
+        "description": "Type \"ABCD\" into the room code input field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"ABCD\" is not visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"12AB\" into the room code input field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"12AB\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Room code length is limited to 4 digits",
+    "description": "Verifies the room code field does not allow more than 4 digits to be entered.",
+    "category": "Join Room",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "action",
+        "description": "Type \"12345\" into the room code input field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"12345\" is not visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"6789\" into the room code input field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"6789\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Player name length is limited to 20 characters",
+    "description": "Verifies the player name field enforces the 20-character limit or prevents longer names from being fully entered.",
+    "category": "Join Room",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "action",
+        "description": "Type \"1234\" into the room code input field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"ThisNameIsWayTooLongOverTwenty\" into the player name input field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"ThisNameIsWayTooLongOverTwenty\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC025",
+    "title": "Missing required fields prevents join or shows validation message",
+    "description": "Verifies attempting to join with missing room code or missing player name is blocked or shows a visible validation/error message.",
+    "category": "Join Room",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "action",
+        "description": "Click the Join button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an error message is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"1234\" into the room code input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the Join button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an error message is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC026",
+    "title": "Language toggle switches Join Room text between English and Thai",
+    "description": "Verifies the language toggle updates visible UI text on the Join Room page.",
+    "category": "Join Room",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Join\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Toggle language between Thai and English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Join\" is not visible"
+      },
+      {
+        "type": "action",
+        "description": "Toggle language between Thai and English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Join\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC027",
+    "title": "Moderator view shows player list and assigned roles",
+    "description": "Verifies the moderator dashboard loads and displays a visible player list with role information for each player.",
+    "category": "Moderator Dashboard",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Create Room\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Room Code\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Players\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"player list\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Roles\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC028",
+    "title": "Start Night begins night phase and shows sub-phase progression labels",
+    "description": "Verifies starting night updates the UI to night state and shows the expected night sub-phase progression indicators.",
+    "category": "Moderator Dashboard",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Create Room\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Start Night\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Night\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Werewolf\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Bodyguard\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Seer\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC029",
+    "title": "Resolve Night blocked when actions are not submitted",
+    "description": "Verifies resolving night too early shows an error message that resolution cannot proceed yet.",
+    "category": "Moderator Dashboard",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Create Room\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Start Night\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Resolve Night\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"cannot\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"actions\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC030",
+    "title": "End Game closes the room from the moderator dashboard",
+    "description": "Verifies the moderator can end the game/close the room and sees a visible ended/closed state or is returned to a non-moderator screen.",
+    "category": "Moderator Dashboard",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Create Room\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"End Game\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"ended\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Create Room\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC031",
+    "title": "View overall stats and per-role breakdown on Profile page (authenticated)",
+    "description": "Verifies an authenticated user can open Profile and see overall and per-role statistics.",
+    "category": "User Profile and Stats",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /profile"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Games\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Wins\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Losses\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC032",
+    "title": "Profile page shows win rate and role stats section (authenticated)",
+    "description": "Verifies win rate and a per-role stats section are visible to an authenticated user.",
+    "category": "User Profile and Stats",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /profile"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Win\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Rate\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Role\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC033",
+    "title": "Logout from Profile redirects to Login",
+    "description": "Verifies an authenticated user can log out from Profile and is sent back to the Login page.",
+    "category": "User Profile and Stats",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /profile"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Logout\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Login\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC034",
+    "title": "Back button on Profile returns to Home",
+    "description": "Verifies the Profile back button takes the user to the Home page.",
+    "category": "User Profile and Stats",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /profile"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Back\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Create Room\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC035",
+    "title": "Toggle language on Profile updates UI text",
+    "description": "Verifies the language toggle on Profile changes visible UI language between English and Thai.",
+    "category": "User Profile and Stats",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /profile"
+      },
+      {
+        "type": "action",
+        "description": "Toggle language between Thai and English"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that either Thai text is visible on the page or English text is visible on the page (indicating the language changed)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Profile page still shows the stats section after the language change"
+      }
+    ]
+  },
+  {
+    "id": "TC036",
+    "title": "Profile shows an error state when stats fail to load",
+    "description": "Verifies the Profile page displays an error message when user stats cannot be loaded.",
+    "category": "User Profile and Stats",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /profile"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the Profile stats area to finish loading"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text indicating stats could not be loaded is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an error-related text such as \"Error\" or \"Failed\" is visible"
+      }
+    ]
+  }
+]

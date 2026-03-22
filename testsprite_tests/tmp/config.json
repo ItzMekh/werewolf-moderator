@@ -1,0 +1,20 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:5173",
+  "loginUser": "admin",
+  "loginPassword": "@dmin",
+  "executionArgs": {
+    "projectName": "werewolf-moderator",
+    "projectPath": "C:\\Users\\Mekh\\Desktop\\Project\\(web app)werewolf-moderator",
+    "testIds": [],
+    "additionalInstruction": "",
+    "serverMode": "production",
+    "envs": {
+      "API_KEY": "sk-user-YCFjQxRgyPMSM-rWv_N7gEVB-oVCglWY8LqnVhJP_-uf4RDf60QWSiRSjKDle27x8GJtL9NTEnMoHvhUPItmtSMvGWD1CMVf6cmvao7bbg2km3qq5TBCOyCMyDQ49FZcpsM"
+    }
+  },
+  "serverPort": 61361,
+  "proxy": "http://a33e76d6-0d52-49de-bf67-6c8b59593860:NEXPBHKPYusFzvPlOw8ZnUDWAxKCRhRG@tun.testsprite.com:8080"
+}
