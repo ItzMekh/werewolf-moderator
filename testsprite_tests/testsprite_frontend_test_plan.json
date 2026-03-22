@@ -1150,5 +1150,327 @@
         "description": "Verify an error-related text such as \"Error\" or \"Failed\" is visible"
       }
     ]
+  },
+  {
+    "id": "TC037",
+    "title": "Home page shows username button when user is logged in",
+    "description": "Verifies that after logging in, the Home page auth bar shows the username button instead of the Login button.",
+    "category": "Home Navigation",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username input field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the Login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"{{LOGIN_USER}}\" is visible in the header"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Login\" button is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC038",
+    "title": "Unauthenticated access to /profile redirects to /login",
+    "description": "Verifies that visiting /profile without being logged in redirects the user to the Login page.",
+    "category": "User Profile and Stats",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Clear localStorage to ensure no auth token exists"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /profile"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Login\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC039",
+    "title": "Login button is disabled when username or password is empty",
+    "description": "Verifies the Login submit button is disabled (not clickable) when either the username or password field is empty.",
+    "category": "User Login and Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login with a full page reload to reset all form state"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Login\" is visible confirming the page is in Login mode (not Register mode)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Login submit button is disabled when both username and password fields are empty"
+      },
+      {
+        "type": "action",
+        "description": "Type \"someuser\" into the username input field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Login submit button is still disabled when only username is filled and password is empty"
+      },
+      {
+        "type": "action",
+        "description": "Clear the username field completely"
+      },
+      {
+        "type": "action",
+        "description": "Type \"somepassword\" into the password input field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Login submit button is still disabled when only password is filled and username is empty"
+      }
+    ]
+  },
+  {
+    "id": "TC040",
+    "title": "Registering with an already-taken username shows an error",
+    "description": "Verifies that attempting to register with a username that already exists shows a visible error message.",
+    "category": "User Login and Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Click toggle to switch to Register mode"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username input field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"AnyPassword123\" into the password input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the Register button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an error message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text indicating username is taken or already exists is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC041",
+    "title": "Create room shows room code and copy button after socket connects",
+    "description": "Verifies that navigating to /create successfully creates a room, displays a 4-digit room code, and shows a functional copy button.",
+    "category": "Create Room (Lobby)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a 4-digit numeric room code is visible on the page"
+      },
+      {
+        "type": "action",
+        "description": "Click the copy button next to the room code"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a confirmation indicator such as a checkmark or 'Copied' text is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC042",
+    "title": "Werewolf role count cannot be decreased below 1",
+    "description": "Verifies that the minus button for the Werewolf role is disabled or has no effect when the count is already at 1 (minimum).",
+    "category": "Create Room (Lobby)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Werewolf role counter is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the minus button for Werewolf multiple times until it cannot decrease further"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Werewolf count shows 1 and does not go below 1"
+      }
+    ]
+  },
+  {
+    "id": "TC043",
+    "title": "Non-werewolf role counts can be decreased to 0",
+    "description": "Verifies that Seer, Bodyguard, and Villager role counts can be decremented to 0 using the minus button.",
+    "category": "Create Room (Lobby)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "action",
+        "description": "Click the minus button for Seer multiple times until it cannot decrease further"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Seer count shows 0"
+      },
+      {
+        "type": "action",
+        "description": "Click the minus button for Bodyguard multiple times until it cannot decrease further"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the Bodyguard count shows 0"
+      }
+    ]
+  },
+  {
+    "id": "TC044",
+    "title": "Player view shows waiting state before game starts",
+    "description": "Verifies that a player who joins a room sees a waiting screen before the moderator starts the game.",
+    "category": "Player View",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create to get a room code"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a 4-digit room code is visible"
+      },
+      {
+        "type": "action",
+        "description": "Note the displayed room code"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /join"
+      },
+      {
+        "type": "action",
+        "description": "Type the noted room code into the room code input field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"TestPlayer\" into the player name input field"
+      },
+      {
+        "type": "action",
+        "description": "Click the Join button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/play/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a waiting or lobby state message is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC045",
+    "title": "Home page shows Login button when user is not authenticated",
+    "description": "Verifies that when no user is logged in, the Home page auth bar shows the Login button.",
+    "category": "Home Navigation",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Clear localStorage to ensure no auth token exists"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Login\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no username button is visible in the auth bar"
+      }
+    ]
+  },
+  {
+    "id": "TC046",
+    "title": "Player count updates in lobby when a player joins",
+    "description": "Verifies the Create Room lobby updates the player list in real time when a player joins using the room code.",
+    "category": "Create Room (Lobby)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /create"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Players (0)\" or similar empty state is visible"
+      },
+      {
+        "type": "action",
+        "description": "Note the displayed 4-digit room code"
+      },
+      {
+        "type": "action",
+        "description": "Open /join in a new tab, enter the noted room code and name \"Alice\", then click Join"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Alice\" is visible in the player list on the Create Room page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Players (1)\" or similar count showing 1 player is visible"
+      }
+    ]
   }
 ]
